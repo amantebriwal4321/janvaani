@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Printer, AlertTriangle, CheckSquare, Square } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,12 @@ export function CscSlip({ jv, open, onOpenChange }: { jv: JanVaani; open: boolea
     { label: "Mobile number linked to Aadhaar (for OTP)", value: p.aadhaarLinkedMobile },
     { label: "Bank account Aadhaar-seeded for DBT", value: p.bankAccountAadhaarSeeded },
   ];
-  const ref = `JV-${state.sessionId.slice(3, 9).toUpperCase()}`;
-  const date = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const ref = state.sessionId ? `JV-${state.sessionId.slice(-6).toUpperCase()}` : "JV-NEW";
+  // Only read the clock when the dialog is opened, never during the prerender.
+  const date = useMemo(
+    () => (open ? new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : ""),
+    [open],
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

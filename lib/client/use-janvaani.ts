@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { emptyProfile, type ProfileKey } from "@/lib/profile/schema";
 import { DEFAULTS, type Lang } from "@/lib/models";
 import { matchSchemes } from "@/lib/schemes/match";
@@ -10,8 +10,10 @@ import type { SessionState, Settings, Status, TurnMetrics, TurnResponse, Utteran
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+// sessionId is filled lazily on the first user action: with cacheComponents the
+// client prerender forbids Math.random()/Date.now() during render.
 const initialState = (): SessionState => ({
-  sessionId: `jv-${uid()}${uid()}`,
+  sessionId: "",
   profile: emptyProfile(),
   stage: "intake",
   pendingField: null,
@@ -34,6 +36,16 @@ export function useJanVaani() {
   const levelTimer = useRef<number | null>(null);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+  const reactId = useId();
+  const sessionIdRef = useRef<string>("");
+  const getSessionId = useCallback(() => {
+    if (!sessionIdRef.current) {
+      const id = `jv-${reactId.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      sessionIdRef.current = id;
+      setState((s) => (s.sessionId ? s : { ...s, sessionId: id }));
+    }
+    return sessionIdRef.current;
+  }, [reactId]);
 
   useEffect(() => {
     fetch("/api/health").then((r) => r.json()).then(setHealth).catch(() => setHealth({ slng: false, liveCall: false }));
@@ -80,12 +92,13 @@ export function useJanVaani() {
       push({ role: "citizen", text: trimmed, via });
       setStatus("thinking");
       const s = stateRef.current;
+      const sessionId = getSessionId();
       try {
         const t0 = performance.now();
         const res = await fetch("/api/turn", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, lang: settings.lang, sessionId: s.sessionId, useLlm: settings.useLlm }),
+          body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, lang: settings.lang, sessionId, useLlm: settings.useLlm }),
         });
         const data = (await res.json()) as TurnResponse & { error?: string };
         if (!res.ok) throw new Error(data.error ?? "Could not process that");
@@ -117,7 +130,7 @@ export function useJanVaani() {
         setStatus("idle");
       }
     },
-    [push, settings.lang, settings.useLlm, speak],
+    [push, getSessionId, settings.lang, settings.useLlm, speak],
   );
 
   const startMic = useCallback(async () => {
@@ -167,6 +180,7 @@ export function useJanVaani() {
 
   const reset = useCallback(() => {
     stopPlayback();
+    sessionIdRef.current = "";
     setState(initialState());
     setError(null);
     setStatus("idle");
@@ -189,13 +203,14 @@ export function useJanVaani() {
   }, []);
 
   const exportSession = useCallback(() => {
-    const blob = new Blob([JSON.stringify({ ...stateRef.current, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
+    const sessionId = getSessionId();
+    const blob = new Blob([JSON.stringify({ ...stateRef.current, sessionId, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `janvaani-${stateRef.current.sessionId}.json`;
+    a.download = `janvaani-${sessionId}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-  }, [settings]);
+  }, [getSessionId, settings]);
 
   return { state, match, settings, setSettings, status, error, setError, health, micLevel, startMic, stopMic, sendText, reset, playGreeting, setField, exportSession };
 }
