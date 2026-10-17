@@ -120,7 +120,7 @@ function ttsBridge(text: string, lang: Lang, model: TtsModelId, voice: string, t
     const timer = setTimeout(() => finish(chunks.length ? undefined : new SlngError("TTS timed out", 504)), 25000);
 
     ws.on("open", () => {
-      ws.send(JSON.stringify({ type: "init", voice, config: { sample_rate: 24000, encoding: "linear16", language: LANGS[lang].bcp47 } }));
+      ws.send(JSON.stringify({ type: "init", voice, config: { sample_rate: 24000, encoding: "linear16", language: LANGS[lang].tts } }));
     });
     ws.on("message", (raw, isBinary) => {
       if (isBinary) {

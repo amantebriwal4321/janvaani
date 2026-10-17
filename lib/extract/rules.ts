@@ -102,10 +102,17 @@ export function isHinglish(text: string): boolean {
 }
 
 export function detectLanguage(text: string): Lang {
+  if (/[\u0A00-\u0A7F]/.test(text)) return "pa";
   if (/[\u0C80-\u0CFF]/.test(text)) return "kn";
   if (/[\u0C00-\u0C7F]/.test(text)) return "te";
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
-  if (/[\u0900-\u097F]/.test(text)) return "hi";
+  // Assamese uses the Bengali script plus ৰ and ৱ, and আপুনি / আপোনাৰ.
+  if (/[\u09F0\u09F1]/.test(text) || /আপুনি|আপোনাৰ|নমস্কাৰ/.test(text) || /[\u0980-\u09FF]/.test(text)) return "as";
+  if (/[\u0900-\u097F]/.test(text)) {
+    if (/तोर|तोहार|तोहरा|हमरा|हमनी|बानी|करेला|रहेला|रहेनी|बाड़|भोजपुरी|कइसे/.test(text)) return "bho";
+    return "hi";
+  }
+  if (/\b(tohra|tohar|humra|bani|karele|kareli|bhojpuri)\b/i.test(text)) return "bho";
   if (isHinglish(text)) return "hi";
   return "en";
 }

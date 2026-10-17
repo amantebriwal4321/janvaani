@@ -49,7 +49,7 @@
 }
 
 :root {
-  --font-sans: var(--font-sans-base), var(--font-dev), var(--font-kan), var(--font-tel), system-ui, sans-serif;
+  --font-sans: var(--font-sans-base), var(--font-dev), var(--font-gur), var(--font-ben), var(--font-kan), var(--font-tel), system-ui, sans-serif;
   --background: oklch(0.975 0.008 85);
   --foreground: oklch(0.2 0.02 60);
   --card: oklch(1 0 0);

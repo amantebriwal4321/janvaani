@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { hasSlng } from "@/lib/env";
 import { SlngError, transcribe } from "@/lib/slng";
-import { DEFAULTS, type Lang, type SttModelId } from "@/lib/models";
+import { DEFAULTS, LANG_IDS, type Lang, type SttModelId } from "@/lib/models";
 
 
 const MODELS = new Set<string>(["sarvam/saaras:v3", "slng/deepgram/nova:3-hi", "soniox/speech-ai:rt-v5"]);
-const LANGS = new Set<string>(["hi", "kn", "te", "ta", "mr", "en"]);
+const LANGS = new Set<string>(LANG_IDS);
 
 // Body: raw PCM 16-bit little-endian mono at 16 kHz (application/octet-stream).
 export async function POST(req: NextRequest) {

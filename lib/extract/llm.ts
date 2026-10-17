@@ -2,21 +2,21 @@ import "server-only";
 import { z } from "zod";
 import { CitizenProfileSchema, type CitizenProfile, type FieldEvidence, type ProfileKey } from "../profile/schema";
 import { routerChat, type LlmResult } from "../slng";
-import type { Lang } from "../models";
+import { LANG_IDS, type Lang } from "../models";
 
 const PartialProfile = CitizenProfileSchema.partial();
 
 const ExtractionSchema = z.object({
   fields: PartialProfile.default({}),
   evidence: z.array(z.object({ field: z.string(), quote: z.string(), confidence: z.number().min(0).max(1).default(0.8) })).default([]),
-  detectedLanguage: z.enum(["hi", "kn", "te", "ta", "mr", "en"]).nullable().default(null),
+  detectedLanguage: z.enum(LANG_IDS).nullable().default(null),
 });
 
 export type Extraction = { delta: Partial<CitizenProfile>; evidence: FieldEvidence[]; detectedLanguage: Lang | null; llm: LlmResult };
 
-const SYSTEM = `You convert what an Indian citizen says (Hindi, Kannada, Telugu, Tamil, Marathi, English, or code-mixed Hinglish/Kanglish) into structured government-form fields.
+const SYSTEM = `You convert what an Indian citizen says (Hindi, Kannada, Punjabi, Bhojpuri, Assamese, Telugu, Tamil, Marathi, English, or a code-mixed mix) into structured government-form fields.
 
-Return ONLY a JSON object: {"fields": {...}, "evidence": [{"field": "...", "quote": "...", "confidence": 0-1}], "detectedLanguage": "hi|kn|te|ta|mr|en"}.
+Return ONLY a JSON object: {"fields": {...}, "evidence": [{"field": "...", "quote": "...", "confidence": 0-1}], "detectedLanguage": "hi|kn|pa|bho|as|te|ta|mr|en"}.
 
 Field schema (omit fields not mentioned; never guess; null means unknown):
 - state, district, village: strings. Karnataka districts: Kolar, Tumakuru, Mandya, Mysuru, Hassan, Belagavi, Dharwad, Ballari, Raichur, Kalaburagi, Bidar, Vijayapura, Davanagere, Shivamogga, Chitradurga, Udupi, Dakshina Kannada, Chikkaballapur, Ramanagara, Bengaluru Rural, Bengaluru Urban, Haveri, Gadag, Koppal, Yadgir, Chamarajanagar, Kodagu, Chikkamagaluru, Uttara Kannada, Bagalkot.

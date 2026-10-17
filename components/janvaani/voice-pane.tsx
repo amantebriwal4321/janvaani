@@ -18,6 +18,9 @@ const DEMOS: { label: string; text: string; lang: Lang }[] = [
   { label: "Widow, domestic work", lang: "hi", text: "Mera naam Lakshmi, 52 saal, Mandya mein rehti hoon. Pati nahi rahe. Ghar ka kaam karti hoon do gharon mein. Ration card mein mera naam mukhiya hai. Ghar kachcha hai." },
   { label: "ಟೈಲರ್ (Kannada)", lang: "kn", text: "ನಾನು ತುಮಕೂರಿನವನು, ವಯಸ್ಸು ೩೮. ಟೈಲರ್ ಕೆಲಸ ಮಾಡುತ್ತೇನೆ, ಸ್ವಂತ ಅಂಗಡಿ ಇಲ್ಲ. ಬಿಪಿಎಲ್ ಕಾರ್ಡ್ ಇದೆ." },
   { label: "Auto driver, Bengaluru", lang: "en", text: "I drive an auto in Bangalore city, I am 34, no PF, no land. We have an APL ration card. My mother is 71 and lives with us." },
+  { label: "ਕਿਸਾਨ (Punjabi)", lang: "pa", text: "ਮੈਂ ਲੁਧਿਆਣਾ ਤੋਂ ਹਾਂ, 3 acre ਜ਼ਮੀਨ, umar 50 saal. ਇਸ ਵਾਰ ਫ਼ਸਲ ਖਰਾਬ ਹੋ ਗਈ।" },
+  { label: "भोजपुरी", lang: "bho", text: "हम कोलार से बानी, 3 acre जमीन बा, उमिर 45 साल बा। ई बेर फसल खराब भइल बा।" },
+  { label: "অসমীয়া", lang: "as", text: "মই কৃষক, তিনি একৰ মাটি, age 45। এইবাৰ শস্য নষ্ট হৈছে।" },
 ];
 
 export function VoicePane({ jv }: { jv: JanVaani }) {

@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { hasSlng } from "@/lib/env";
 import { SlngError, synthesize } from "@/lib/slng";
-import { DEFAULTS } from "@/lib/models";
+import { DEFAULTS, LANG_IDS } from "@/lib/models";
 
 
 const Body = z.object({
   text: z.string().min(1).max(1200),
-  lang: z.enum(["hi", "kn", "te", "ta", "mr", "en"]).default("hi"),
+  lang: z.enum(LANG_IDS).default("hi"),
   model: z.enum(["sarvam/bulbul:v3", "deepgram/aura:2"]).default(DEFAULTS.tts),
   voice: z.string().min(1).max(40).default(DEFAULTS.voice),
 });

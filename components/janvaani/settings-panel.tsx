@@ -24,7 +24,7 @@ export function SettingsPanel({ jv }: { jv: JanVaani }) {
           <DialogDescription>Swap any component without changing a line of app code. Every option runs through SLNG&apos;s India gateway and bills to the same project.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Row label="Reply language" hint="JanVaani answers and speaks in this language whatever the citizen types or says. Auto follows the citizen's own language (romanised Hindi counts as Hindi).">
+          <Row label="Reply language" hint="JanVaani answers and speaks in this language whatever the citizen types or says. Hindi, Kannada, Punjabi, Bhojpuri, Assamese, Telugu, Tamil, Marathi, or English. Auto follows the citizen. Bhojpuri is spoken with the Hindi voice, Assamese with the Bengali voice.">
             <Select value={settings.replyLang} onValueChange={(v) => v && upd("replyLang", v as ReplyLang)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>

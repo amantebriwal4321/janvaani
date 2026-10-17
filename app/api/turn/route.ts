@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { CitizenProfileSchema } from "@/lib/profile/schema";
 import { runTurn } from "@/lib/turn";
-import { DEFAULT_REPLY_LANG } from "@/lib/models";
+import { DEFAULT_REPLY_LANG, REPLY_LANG_IDS } from "@/lib/models";
 
 
 const Body = z.object({
@@ -11,9 +11,9 @@ const Body = z.object({
   stage: z.enum(["intake", "audit", "done"]).default("intake"),
   pendingField: z.string().nullable().default(null),
   // Language to reply (and speak) in. "auto" follows the citizen's message.
-  replyLang: z.enum(["auto", "hi", "kn", "te", "ta", "mr", "en"]).optional(),
+  replyLang: z.enum(REPLY_LANG_IDS).optional(),
   // Legacy name for replyLang, kept for older clients.
-  lang: z.enum(["auto", "hi", "kn", "te", "ta", "mr", "en"]).optional(),
+  lang: z.enum(REPLY_LANG_IDS).optional(),
   sessionId: z.string().min(1).max(200).default("local"),
   useLlm: z.boolean().default(true),
 });

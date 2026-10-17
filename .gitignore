@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local voice takes and intermediate narration wavs
+pitch/voices/
+pitch/voice-sample.wav
