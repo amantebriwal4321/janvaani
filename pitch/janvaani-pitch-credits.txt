@@ -1,0 +1,34 @@
+JanVaani pitch — photograph credits
+All photographs are real files from Wikimedia Commons. Licenses allow reuse (CC BY, CC BY-SA). No AI-generated faces.
+
+1. Title: Portrait of an old Indian woman
+   Author: Nithi Anand
+   License: CC BY 2.0
+   Source: https://commons.wikimedia.org/wiki/File:Portrait_of_an_old_indian_woman_(25507743530).jpg
+   Used for: cold open, end card
+
+2. Title: Veiled Cook
+   Author: Vipingoyal
+   License: CC BY-SA 3.0
+   Source: https://commons.wikimedia.org/wiki/File:Veiled_Cook.jpg
+   Used for: a widow who does domestic work
+
+3. Title: Farmer manually harvesting rice in Raichur, Karnataka
+   Author: Nanditha Gogate, WELL Labs
+   License: CC BY-SA 4.0
+   Source: https://commons.wikimedia.org/wiki/File:Farmer_manually_harvesting_rice_in_Raichur,_Karnataka.jpg
+   Used for: a farmer with three acres in Kolar
+
+4. Title: Tailor
+   Author: KALX999
+   License: CC BY-SA 3.0
+   Source: https://commons.wikimedia.org/wiki/File:Tailor.JPG
+   Used for: a tailor
+
+5. Title: Common Service Center, Barjupur
+   Author: Ajay12910
+   License: CC BY-SA 4.0
+   Source: https://commons.wikimedia.org/wiki/File:Common_Service_Center,_Barjupur.jpg
+   Used for: the CSC, one wrong field
+
+App footage is a screen recording of the JanVaani production build. No copyrighted music. Audio is silent.
