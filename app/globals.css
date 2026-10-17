@@ -141,3 +141,19 @@
   100% { background-color: transparent; }
 }
 .animate-field-flash { animation: field-flash 2.4s ease-out forwards; }
+
+@keyframes stage-leave {
+  to { opacity: 0; transform: scale(1.08); filter: blur(10px); }
+}
+@keyframes desk-enter {
+  from { opacity: 0; transform: translateY(40px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.stage-leave {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  animation: stage-leave 0.8s ease forwards;
+  pointer-events: none;
+}
+.desk-enter { animation: desk-enter 0.85s cubic-bezier(0.16, 1, 0.3, 1); }

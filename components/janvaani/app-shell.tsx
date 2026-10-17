@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Download, RotateCcw, X, Mic, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,16 +19,25 @@ type Tab = "talk" | "form" | "schemes";
 export function AppShell() {
   const jv = useJanVaani();
   const [tab, setTab] = useState<Tab>("talk");
-  const [stage, setStage] = useState(true);
+  const [phase, setPhase] = useState<"ring" | "opening" | "desk">("ring");
   const confirmed = jv.match.eligible.length + jv.match.likely.length;
-
-  if (stage) {
-    return <AudienceStage onEnter={() => setStage(false)} />;
-  }
+  const openDesk = useCallback(() => {
+    setPhase((current) => {
+      if (current !== "ring") return current;
+      window.setTimeout(() => setPhase("desk"), 780);
+      return "opening";
+    });
+  }, []);
 
   return (
     <TooltipProvider>
-      <div className="flex min-h-dvh flex-col gap-3 p-3 md:h-dvh md:p-4">
+      {phase !== "desk" && (
+        <div className={phase === "opening" ? "stage-leave" : "fixed inset-0 z-40"}>
+          <AudienceStage onEnter={openDesk} autoOpen={phase === "ring"} />
+        </div>
+      )}
+      {phase !== "ring" && (
+      <div className={cn("flex min-h-dvh flex-col gap-3 p-3 md:h-dvh md:p-4", phase === "opening" && "desk-enter")}>
         <header className="flex flex-wrap items-center justify-between gap-2 print:hidden">
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
@@ -48,7 +57,7 @@ export function AppShell() {
             <Button variant="ghost" size="sm" onClick={jv.reset} disabled={jv.state.transcript.length === 0}>
               <RotateCcw data-icon="inline-start" /> New citizen
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setStage(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setPhase("ring")}>
               People
             </Button>
           </div>
@@ -77,6 +86,7 @@ export function AppShell() {
 
         <div className="print:hidden"><MetricsBar jv={jv} /></div>
       </div>
+      )}
     </TooltipProvider>
   );
 }
