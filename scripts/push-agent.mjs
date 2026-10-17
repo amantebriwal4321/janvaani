@@ -33,9 +33,10 @@ const compiled = JSON.parse(fs.readFileSync(bodyPath, "utf8"));
 const patch = {
   system_prompt: compiled.system_prompt,
   greeting: compiled.greeting,
-  // Catalog language for this region. "hi-IN" makes Saaras unavailable; the
-  // BCP-47 pin lives in stt_kwargs. Do not put `language` in stt_kwargs: the
-  // API reserves that key and sets it from this field.
+  // Catalog language for this region stays "hi". "hi-IN" is not a legal agent
+  // language here. Do not put `language` in stt_kwargs: the API reserves that
+  // key and sets it from this field. Live Call listens with Nova 3 Hindi;
+  // Saaras language_code / mode keys are not part of this body.
   language: compiled.language ?? "hi",
   models: compiled.models,
   enable_interruptions: compiled.enable_interruptions,

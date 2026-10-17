@@ -98,7 +98,7 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Radio className="size-4 text-primary" /> Live Call with JanVaani agent</DialogTitle>
-            <DialogDescription>Full-duplex phone-style conversation. The agent runs on SLNG (Saaras v3 ears, hosted LLM, Bulbul v3 voice) from the <code className="font-mono text-xs">unmute/janvaani</code> spec; you can interrupt it mid-sentence.</DialogDescription>
+            <DialogDescription>Full-duplex phone-style conversation. The agent runs on SLNG (Nova 3 Hindi ears, hosted LLM, Bulbul v3 voice) from the <code className="font-mono text-xs">unmute/janvaani</code> spec; you can interrupt it mid-sentence.</DialogDescription>
           </DialogHeader>
           <div ref={audioElRef} className="hidden" />
           <div className="flex items-center justify-between rounded-xl border bg-muted/40 px-4 py-3">

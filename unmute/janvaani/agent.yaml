@@ -43,20 +43,21 @@ models:
         world_part: in
   listen:
     ears:
-      description: Sarvam Saaras v3 pinned to Hindi so noisy audio is transcribed, not auto-detected as English
+      description: SLNG-hosted Deepgram Nova 3 Hindi. Saaras pinned to hi-IN still returned syllable salad on Live Call, so the Hindi specialist listens instead.
       provider: slng
-      model: "sarvam/saaras:v3"
+      model: "slng/deepgram/nova:3-hi"
       params:
         world_part: in
-        # Saaras defaults language_code to "unknown" (auto), which turns a Hindi
-        # caller into English hallucinations. The Agents API forbids a `language`
-        # key here (it copies the agent language, which must stay "hi" or Saaras
-        # is rejected for this region). These two aliases are what Saaras reads.
-        language_code: hi-IN
-        language-code: hi-IN
-        mode: transcribe
-        # Less eager VAD: short noise should not become a sentence.
+        # Nova options the Agents API accepted on a probe PATCH. Do not set
+        # `language` (reserved; the agent language "hi" is copied in) and do not
+        # set detect_language. Saaras keys (language_code, mode) are not sent.
+        # endpointing 500 waits through a short pause. The 10ms Nova default
+        # cuts a sentence into fragments. high_vad_sensitivity false keeps
+        # noise from becoming a turn. turn_pace stays patient in agent.json.
+        smart_format: true
+        punctuate: true
         high_vad_sensitivity: false
+        endpointing: 500
   # No turn: block. `unmute validate` rejects pace and endpointing_delay on the
   # slng target. The Agents API still accepts turn_pace (snappy|balanced|patient);
   # build/slng/agent.json sets patient and push-agent.mjs sends it.
@@ -67,7 +68,7 @@ tools:
 conversation:
   greeting:
     speaks_first: agent
-    text: "नमस्ते, मैं जनवाणी हूँ। अपने बारे में बताइए: आप कहाँ रहते हैं, क्या काम करते हैं, और उम्र कितनी है। मैं बताऊँगी कि कौन सी सरकारी योजना आपके लिए है।"
+    text: "नमस्ते, मैं जनवाणी हूँ। सरकारी योजना के लिए एक-एक सवाल पूछूँगी। आप कहाँ रहते हैं?"
 
 channels:
   web:
