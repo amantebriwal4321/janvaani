@@ -1,0 +1,108 @@
+import type { CitizenProfile, ProfileKey } from "./profile/schema";
+import type { Lang } from "./models";
+import type { MatchSummary } from "./schemes/match";
+
+type Q = Record<Lang, string>;
+
+const QUESTIONS: Partial<Record<ProfileKey, Q>> = {
+  age: { hi: "आपकी उम्र कितनी है?", kn: "ನಿಮ್ಮ ವಯಸ್ಸು ಎಷ್ಟು?", te: "మీ వయస్సు ఎంత?", ta: "உங்கள் வயது என்ன?", mr: "तुमचे वय किती आहे?", en: "How old are you?" },
+  occupationClass: { hi: "आप क्या काम करते हैं?", kn: "ನೀವು ಯಾವ ಕೆಲಸ ಮಾಡುತ್ತೀರಿ?", te: "మీరు ఏ పని చేస్తారు?", ta: "நீங்கள் என்ன வேலை செய்கிறீர்கள்?", mr: "तुम्ही काय काम करता?", en: "What work do you do?" },
+  areaType: { hi: "आप गाँव में रहते हैं या शहर में?", kn: "ನೀವು ಹಳ್ಳಿಯಲ್ಲಿ ಇದ್ದೀರಾ ಅಥವಾ ನಗರದಲ್ಲಿ?", te: "మీరు గ్రామంలో ఉంటారా లేదా పట్టణంలోనా?", ta: "நீங்கள் கிராமத்தில் வசிக்கிறீர்களா அல்லது நகரத்தில்?", mr: "तुम्ही गावात राहता की शहरात?", en: "Do you live in a village or a town?" },
+  landAcres: { hi: "आपके नाम पर कितनी ज़मीन है, एकड़ में?", kn: "ನಿಮ್ಮ ಹೆಸರಿನಲ್ಲಿ ಎಷ್ಟು ಜಮೀನು ಇದೆ, ಎಕರೆಯಲ್ಲಿ?", te: "మీ పేరు మీద ఎంత భూమి ఉంది, ఎకరాల్లో?", ta: "உங்கள் பெயரில் எவ்வளவு நிலம் உள்ளது, ஏக்கரில்?", mr: "तुमच्या नावावर किती जमीन आहे, एकरात?", en: "How much land is in your name, in acres?" },
+  isLandOwner: { hi: "ज़मीन आपकी अपनी है या किराये पर लेते हैं?", kn: "ಜಮೀನು ನಿಮ್ಮದೇ ಅಥವಾ ಗುತ್ತಿಗೆ?", te: "భూమి మీదేనా లేదా కౌలుకు తీసుకున్నారా?", ta: "நிலம் உங்களுடையதா அல்லது குத்தகையா?", mr: "जमीन तुमची स्वतःची आहे की भाड्याने?", en: "Is the land your own or leased?" },
+  rationCardType: { hi: "आपका राशन कार्ड कौन सा है — BPL, अंत्योदय, या APL?", kn: "ನಿಮ್ಮ ರೇಷನ್ ಕಾರ್ಡ್ ಯಾವುದು — BPL, ಅಂತ್ಯೋದಯ, ಅಥವಾ APL?", te: "మీ రేషన్ కార్డు ఏది — BPL, అంత్యోదయ, లేదా APL?", ta: "உங்கள் ரேஷன் அட்டை எது — BPL, அந்த்யோதயா, அல்லது APL?", mr: "तुमचे रेशन कार्ड कोणते — BPL, अंत्योदय की APL?", en: "Which ration card do you have: BPL, Antyodaya, or APL?" },
+  maritalStatus: { hi: "क्या आप शादीशुदा हैं?", kn: "ನೀವು ಮದುವೆಯಾಗಿದ್ದೀರಾ?", te: "మీకు పెళ్లయిందా?", ta: "நீங்கள் திருமணமானவரா?", mr: "तुम्ही विवाहित आहात का?", en: "Are you married?" },
+  isWomanHeadOfHousehold: { hi: "राशन कार्ड में मुखिया का नाम किसका है — आपका या किसी महिला का?", kn: "ರೇಷನ್ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಮುಖ್ಯಸ್ಥರು ಯಾರು — ಮಹಿಳೆಯೇ?", te: "రేషన్ కార్డులో కుటుంబ పెద్ద ఎవరు — మహిళా?", ta: "ரேஷன் அட்டையில் குடும்பத் தலைவர் யார் — பெண்ணா?", mr: "रेशन कार्डवर कुटुंबप्रमुख कोण — महिला का?", en: "Who is listed as head of the family on the ration card: is it a woman?" },
+  householdMembers70Plus: { hi: "घर में कोई 70 साल से ऊपर है — माता-पिता या दादा-दादी?", kn: "ಮನೆಯಲ್ಲಿ 70 ವರ್ಷ ಮೇಲ್ಪಟ್ಟವರು ಯಾರಾದರೂ ಇದ್ದಾರಾ?", te: "ఇంట్లో 70 ఏళ్లు పైబడిన వారు ఎవరైనా ఉన్నారా?", ta: "வீட்டில் 70 வயதுக்கு மேல் யாராவது இருக்கிறார்களா?", mr: "घरात कोणी 70 वर्षांवरील आहे का?", en: "Is anyone in your home above 70, like your parents?" },
+  housingType: { hi: "आपका घर कच्चा है या पक्का?", kn: "ನಿಮ್ಮ ಮನೆ ಕಚ್ಚಾ ಅಥವಾ ಪಕ್ಕಾ?", te: "మీ ఇల్లు కచ్చా లేదా పక్కా?", ta: "உங்கள் வீடு கச்சா அல்லது பக்கா?", mr: "तुमचे घर कच्चे आहे की पक्के?", en: "Is your house kutcha or pucca?" },
+  recentCropLoss: { hi: "इस मौसम में फसल खराब हुई क्या?", kn: "ಈ ಋತುವಿನಲ್ಲಿ ಬೆಳೆ ಹಾನಿಯಾಗಿದೆಯೇ?", te: "ఈ సీజన్‌లో పంట నష్టం జరిగిందా?", ta: "இந்த பருவத்தில் பயிர் சேதம் ஏற்பட்டதா?", mr: "या हंगामात पीक खराब झाले का?", en: "Was any crop damaged this season?" },
+  paysIncomeTax: { hi: "क्या घर में कोई इनकम टैक्स भरता है?", kn: "ಮನೆಯಲ್ಲಿ ಯಾರಾದರೂ ಆದಾಯ ತೆರಿಗೆ ಕಟ್ಟುತ್ತಾರಾ?", te: "ఇంట్లో ఎవరైనా ఆదాయపు పన్ను కడతారా?", ta: "வீட்டில் யாராவது வருமான வரி கட்டுகிறார்களா?", mr: "घरात कोणी इन्कम टॅक्स भरते का?", en: "Does anyone in your family pay income tax?" },
+  govtEmployeeInFamily: { hi: "घर में कोई सरकारी नौकरी में है?", kn: "ಮನೆಯಲ್ಲಿ ಯಾರಾದರೂ ಸರ್ಕಾರಿ ಕೆಲಸದಲ್ಲಿ ಇದ್ದಾರಾ?", te: "ఇంట్లో ఎవరైనా ప్రభుత్వ ఉద్యోగంలో ఉన్నారా?", ta: "வீட்டில் யாராவது அரசு வேலையில் இருக்கிறார்களா?", mr: "घरात कोणी सरकारी नोकरीत आहे का?", en: "Is anyone in your family in a government job?" },
+  hasEpfoOrEsic: { hi: "क्या आपकी सैलरी से PF कटता है?", kn: "ನಿಮ್ಮ ಸಂಬಳದಿಂದ PF ಕಡಿತವಾಗುತ್ತದೆಯೇ?", te: "మీ జీతం నుండి PF కట్ అవుతుందా?", ta: "உங்கள் சம்பளத்தில் PF பிடிக்கப்படுகிறதா?", mr: "तुमच्या पगारातून PF कापला जातो का?", en: "Is PF deducted from your salary?" },
+  annualIncomeBand: { hi: "साल भर में घर की कमाई लगभग कितनी है?", kn: "ವರ್ಷಕ್ಕೆ ಮನೆಯ ಆದಾಯ ಸುಮಾರು ಎಷ್ಟು?", te: "సంవత్సరానికి ఇంటి ఆదాయం సుమారు ఎంత?", ta: "வருடத்திற்கு குடும்ப வருமானம் சுமார் எவ்வளவு?", mr: "वर्षभरात घरची कमाई साधारण किती?", en: "Roughly how much does your household earn in a year?" },
+  sectorType: { hi: "क्या आप किसी कंपनी में नौकरी करते हैं या अपना काम?", kn: "ನೀವು ಕಂಪನಿಯಲ್ಲಿ ಕೆಲಸ ಮಾಡುತ್ತೀರಾ ಅಥವಾ ಸ್ವಂತ ಕೆಲಸ?", te: "మీరు కంపెనీలో పని చేస్తారా లేదా సొంత పని?", ta: "நீங்கள் நிறுவனத்தில் வேலை செய்கிறீர்களா அல்லது சொந்த வேலையா?", mr: "तुम्ही कंपनीत नोकरी करता की स्वतःचे काम?", en: "Do you work for a company or on your own?" },
+  aadhaarNameMatchesRationCard: { hi: "आपके आधार और राशन कार्ड में नाम और जन्मतिथि एक जैसी है?", kn: "ನಿಮ್ಮ ಆಧಾರ್ ಮತ್ತು ರೇಷನ್ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಹೆಸರು ಮತ್ತು ಜನ್ಮದಿನಾಂಕ ಒಂದೇ ಇದೆಯೇ?", te: "మీ ఆధార్ మరియు రేషన్ కార్డులో పేరు, పుట్టిన తేదీ ఒకేలా ఉన్నాయా?", ta: "உங்கள் ஆதார் மற்றும் ரேஷன் அட்டையில் பெயர், பிறந்த தேதி ஒரே மாதிரியா?", mr: "तुमच्या आधार आणि रेशन कार्डवर नाव व जन्मतारीख सारखी आहे का?", en: "Is your name and date of birth the same on Aadhaar and the ration card?" },
+  aadhaarLinkedMobile: { hi: "आपका मोबाइल नंबर आधार से जुड़ा है? OTP उसी पर आता है।", kn: "ನಿಮ್ಮ ಮೊಬೈಲ್ ಆಧಾರ್‌ಗೆ ಲಿಂಕ್ ಆಗಿದೆಯೇ? OTP ಅದಕ್ಕೆ ಬರುತ್ತದೆ.", te: "మీ మొబైల్ ఆధార్‌కు లింక్ అయి ఉందా? OTP దానికే వస్తుంది.", ta: "உங்கள் மொபைல் ஆதாருடன் இணைக்கப்பட்டுள்ளதா? OTP அதற்கே வரும்.", mr: "तुमचा मोबाइल आधारशी जोडलेला आहे का? OTP त्यावरच येतो.", en: "Is your mobile number linked to Aadhaar? The OTP goes there." },
+  bankAccountAadhaarSeeded: { hi: "आपके बैंक खाते में आधार जुड़ा हुआ है? पैसा उसी में आता है।", kn: "ನಿಮ್ಮ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಆಧಾರ್ ಲಿಂಕ್ ಆಗಿದೆಯೇ? ಹಣ ಅದಕ್ಕೇ ಬರುತ್ತದೆ.", te: "మీ బ్యాంక్ ఖాతాకు ఆధార్ లింక్ అయి ఉందా? డబ్బు దానికే వస్తుంది.", ta: "உங்கள் வங்கிக் கணக்கில் ஆதார் இணைக்கப்பட்டுள்ளதா? பணம் அதற்கே வரும்.", mr: "तुमच्या बँक खात्याला आधार जोडलेला आहे का? पैसे त्यातच येतात.", en: "Is your bank account linked to Aadhaar? Benefits are paid into it." },
+};
+
+const ACK: Q = { hi: "ठीक है।", kn: "ಸರಿ.", te: "సరే.", ta: "சரி.", mr: "ठीक आहे.", en: "Okay." };
+const GREETING: Q = {
+  hi: "नमस्ते, मैं जनवाणी हूँ। अपने बारे में बताइए — आप कहाँ रहते हैं, क्या काम करते हैं, और उम्र कितनी है। मैं बताऊँगी कि कौन सी सरकारी योजना आपके लिए है।",
+  kn: "ನಮಸ್ಕಾರ, ನಾನು ಜನವಾಣಿ. ನಿಮ್ಮ ಬಗ್ಗೆ ಹೇಳಿ — ಎಲ್ಲಿ ಇದ್ದೀರಿ, ಯಾವ ಕೆಲಸ, ವಯಸ್ಸು ಎಷ್ಟು. ಯಾವ ಸರ್ಕಾರಿ ಯೋಜನೆ ನಿಮಗೆ ಸಿಗುತ್ತದೆ ಎಂದು ಹೇಳುತ್ತೇನೆ.",
+  te: "నమస్తే, నేను జనవాణి. మీ గురించి చెప్పండి — ఎక్కడ ఉంటారు, ఏ పని, వయస్సు ఎంత. ఏ ప్రభుత్వ పథకం మీకు వస్తుందో చెబుతాను.",
+  ta: "வணக்கம், நான் ஜனவாணி. உங்களைப் பற்றி சொல்லுங்கள் — எங்கே வசிக்கிறீர்கள், என்ன வேலை, வயது என்ன. எந்த அரசு திட்டம் உங்களுக்கு கிடைக்கும் என்று சொல்கிறேன்.",
+  mr: "नमस्कार, मी जनवाणी. तुमच्याबद्दल सांगा — कुठे राहता, काय काम करता, वय किती. कोणती सरकारी योजना तुम्हाला मिळेल ते मी सांगेन.",
+  en: "Hello, I am JanVaani. Tell me about yourself: where you live, what work you do, and your age. I will tell you which government schemes you can get.",
+};
+
+const SCHEME_NAMES: Record<string, Partial<Q>> = {
+  pmjay: { hi: "आयुष्मान भारत कार्ड", kn: "ಆಯುಷ್ಮಾನ್ ಭಾರತ ಕಾರ್ಡ್", te: "ఆయుష్మాన్ భారత్ కార్డు", en: "Ayushman Bharat card" },
+  vay_vandana: { hi: "70 साल वालों का आयुष्मान वय वंदना कार्ड", kn: "70 ವರ್ಷ ಮೇಲ್ಪಟ್ಟವರಿಗೆ ಆಯುಷ್ಮಾನ್ ವಯ ವಂದನಾ ಕಾರ್ಡ್", en: "Ayushman Vay Vandana card for seniors" },
+  pm_kisan: { hi: "पीएम किसान के 6,000 रुपये", kn: "ಪಿಎಂ ಕಿಸಾನ್ 6,000 ರೂಪಾಯಿ", te: "పిఎం కిసాన్ 6,000 రూపాయలు", en: "PM-KISAN 6,000 rupees a year" },
+  pmfby: { hi: "फसल बीमा का क्लेम", kn: "ಬೆಳೆ ವಿಮೆ ಕ್ಲೈಮ್", te: "పంట బీమా క్లెయిమ్", en: "crop insurance claim" },
+  eshram: { hi: "ई-श्रम कार्ड", kn: "ಇ-ಶ್ರಮ್ ಕಾರ್ಡ್", te: "ఇ-శ్రమ్ కార్డు", en: "e-Shram card" },
+  vishwakarma: { hi: "पीएम विश्वकर्मा", kn: "ಪಿಎಂ ವಿಶ್ವಕರ್ಮ", en: "PM Vishwakarma" },
+  pmay_g: { hi: "पीएम आवास का पक्का घर", kn: "ಪಿಎಂ ಆವಾಸ್ ಪಕ್ಕಾ ಮನೆ", en: "PM Awas house" },
+  old_age_pension: { hi: "वृद्धावस्था पेंशन", kn: "ಸಂಧ್ಯಾ ಸುರಕ್ಷಾ ಪಿಂಚಣಿ", en: "old age pension" },
+  gruha_lakshmi: { hi: "गृह लक्ष्मी के 2,000 रुपये महीना", kn: "ಗೃಹ ಲಕ್ಷ್ಮಿ ತಿಂಗಳಿಗೆ 2,000 ರೂಪಾಯಿ", en: "Gruha Lakshmi 2,000 rupees a month" },
+  widow_pension: { hi: "विधवा पेंशन", kn: "ವಿಧವಾ ವೇತನ", en: "widow pension" },
+};
+
+const TEMPLATES = {
+  youCanGet: { hi: "आपको {list} मिल सकता है।", kn: "ನಿಮಗೆ {list} ಸಿಗಬಹುದು.", te: "మీకు {list} రావచ్చు.", ta: "உங்களுக்கு {list} கிடைக்கலாம்.", mr: "तुम्हाला {list} मिळू शकते.", en: "You can get {list}." } as Q,
+  and: { hi: " और ", kn: " ಮತ್ತು ", te: " మరియు ", ta: " மற்றும் ", mr: " आणि ", en: " and " } as Q,
+  auditIntro: { hi: "अब तीन छोटी बातें जाँच लेते हैं ताकि CSC पर फॉर्म रिजेक्ट न हो।", kn: "ಈಗ CSC ಯಲ್ಲಿ ಫಾರ್ಮ್ ತಿರಸ್ಕೃತವಾಗದಂತೆ ಮೂರು ಸಣ್ಣ ವಿಷಯ ಪರಿಶೀಲಿಸೋಣ.", te: "ఇప్పుడు CSCలో ఫారం తిరస్కరించబడకుండా మూడు చిన్న విషయాలు చూద్దాం.", ta: "இப்போது CSC-யில் படிவம் நிராகரிக்கப்படாமல் இருக்க மூன்று சிறிய விஷயங்களை சரிபார்ப்போம்.", mr: "आता CSC वर फॉर्म नाकारला जाऊ नये म्हणून तीन छोट्या गोष्टी तपासूया.", en: "Now let us check three small things so the CSC does not reject your form." } as Q,
+  done: { hi: "आपकी CSC पर्ची तैयार है। इसे दिखाकर एक ही बार में काम हो जाएगा।", kn: "ನಿಮ್ಮ CSC ಚೀಟಿ ಸಿದ್ಧವಾಗಿದೆ. ಇದನ್ನು ತೋರಿಸಿದರೆ ಒಂದೇ ಬಾರಿಗೆ ಕೆಲಸ ಆಗುತ್ತದೆ.", te: "మీ CSC స్లిప్ సిద్ధంగా ఉంది. దీన్ని చూపిస్తే ఒక్కసారిలో పని అవుతుంది.", ta: "உங்கள் CSC சீட்டு தயார். இதைக் காட்டினால் ஒரே முறையில் வேலை முடியும்.", mr: "तुमची CSC पावती तयार आहे. ती दाखवली की एकाच फेरीत काम होईल.", en: "Your CSC Ready Slip is done. Show it at the centre and finish in one visit." } as Q,
+  fixFirst: { hi: "लेकिन पहले यह ठीक करवाना होगा: {fix}", kn: "ಆದರೆ ಮೊದಲು ಇದನ್ನು ಸರಿಪಡಿಸಬೇಕು: {fix}", te: "కానీ ముందుగా ఇది సరిచేయాలి: {fix}", ta: "ஆனால் முதலில் இதை சரிசெய்ய வேண்டும்: {fix}", mr: "पण आधी हे दुरुस्त करावे लागेल: {fix}", en: "But fix this first: {fix}" } as Q,
+  nothingYet: { hi: "समझ नहीं आया। फिर से बताइए, जैसे: मैं कोलार से हूँ, दो एकड़ खेती करता हूँ, उम्र 45 है।", kn: "ಅರ್ಥವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಹೇಳಿ, ಉದಾಹರಣೆಗೆ: ನಾನು ಕೋಲಾರದವನು, ಎರಡು ಎಕರೆ ಬೇಸಾಯ, ವಯಸ್ಸು 45.", te: "అర్థం కాలేదు. మళ్ళీ చెప్పండి, ఉదాహరణకు: నేను కోలార్ నుండి, రెండు ఎకరాల వ్యవసాయం, వయస్సు 45.", ta: "புரியவில்லை. மீண்டும் சொல்லுங்கள், உதாரணமாக: நான் கோலாரிலிருந்து, இரண்டு ஏக்கர் விவசாயம், வயது 45.", mr: "समजले नाही. पुन्हा सांगा, जसे: मी कोलारचा, दोन एकर शेती, वय 45.", en: "I did not catch that. Try again, for example: I am from Kolar, I farm two acres, I am 45." } as Q,
+  fixLabels: {
+    aadhaarNameMatchesRationCard: { hi: "आधार और राशन कार्ड में नाम मिलान", kn: "ಆಧಾರ್-ರೇಷನ್ ಕಾರ್ಡ್ ಹೆಸರು ಹೊಂದಾಣಿಕೆ", te: "ఆధార్-రేషన్ కార్డు పేరు సరిపోలిక", ta: "ஆதார்-ரேஷன் அட்டை பெயர் பொருத்தம்", mr: "आधार-रेशन कार्ड नाव जुळणी", en: "Aadhaar and ration card name match" } as Q,
+    aadhaarLinkedMobile: { hi: "आधार से मोबाइल लिंक", kn: "ಆಧಾರ್‌ಗೆ ಮೊಬೈಲ್ ಲಿಂಕ್", te: "ఆధార్‌కు మొబైల్ లింక్", ta: "ஆதாருடன் மொபைல் இணைப்பு", mr: "आधार मोबाइल लिंक", en: "Aadhaar mobile link" } as Q,
+    bankAccountAadhaarSeeded: { hi: "बैंक खाते में आधार सीडिंग", kn: "ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಆಧಾರ್ ಸೀಡಿಂಗ್", te: "బ్యాంక్ ఖాతాకు ఆధార్ సీడింగ్", ta: "வங்கிக் கணக்கில் ஆதார் இணைப்பு", mr: "बँक खात्यात आधार सीडिंग", en: "bank Aadhaar seeding" } as Q,
+  } as Record<string, Q>,
+};
+
+export const greeting = (lang: Lang) => GREETING[lang];
+
+export function questionFor(field: ProfileKey, lang: Lang): string {
+  return QUESTIONS[field]?.[lang] ?? QUESTIONS[field]?.en ?? `Tell me about ${field}.`;
+}
+
+export type Stage = "intake" | "audit" | "done";
+
+export function composeReply(opts: {
+  lang: Lang;
+  profile: CitizenProfile;
+  match: MatchSummary;
+  extractedAnything: boolean;
+  stage: Stage;
+  nextField: ProfileKey | null;
+  newlyEligible: string[];
+}): string {
+  const { lang, match, extractedAnything, stage, nextField, newlyEligible } = opts;
+  const parts: string[] = [];
+
+  if (!extractedAnything && stage === "intake" && match.eligible.length + match.likely.length === 0) {
+    return TEMPLATES.nothingYet[lang];
+  }
+
+  if (newlyEligible.length) {
+    const names = newlyEligible.map((id) => SCHEME_NAMES[id]?.[lang] ?? SCHEME_NAMES[id]?.en ?? id);
+    parts.push(TEMPLATES.youCanGet[lang].replace("{list}", names.join(TEMPLATES.and[lang])));
+  } else if (extractedAnything) {
+    parts.push(ACK[lang]);
+  }
+
+  if (stage === "audit" && nextField === "aadhaarNameMatchesRationCard") parts.push(TEMPLATES.auditIntro[lang]);
+
+  if (stage === "done") {
+    const fixes = (["aadhaarNameMatchesRationCard", "aadhaarLinkedMobile", "bankAccountAadhaarSeeded"] as const).filter((k) => opts.profile[k] === false);
+    if (fixes.length) parts.push(TEMPLATES.fixFirst[lang].replace("{fix}", fixes.map((k) => TEMPLATES.fixLabels[k][lang]).join(TEMPLATES.and[lang])));
+    parts.push(TEMPLATES.done[lang]);
+    return parts.join(" ");
+  }
+
+  if (nextField) parts.push(questionFor(nextField, lang));
+  return parts.join(" ");
+}
