@@ -17,6 +17,10 @@ const Body = z.object({
   lang: z.enum(REPLY_LANG_IDS).optional(),
   sessionId: z.string().min(1).max(200).default("local"),
   useLlm: z.boolean().default(true),
+  // Live Call sets these so the hosted agent stays the only voice. Extraction,
+  // scheme match, and the pre-CSC audit stage still run.
+  fillOnly: z.boolean().optional().default(false),
+  speak: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,7 +38,8 @@ export async function POST(req: NextRequest) {
       sessionId: b.sessionId.replace(/[^A-Za-z0-9_-]/g, "_"),
       useLlm: b.useLlm,
     });
-    return jsonResponse({ ...out, serverMs: Date.now() - t0 });
+    const speak = !b.fillOnly && b.speak !== false;
+    return jsonResponse({ ...out, serverMs: Date.now() - t0, speak });
   } catch (e) {
     return jsonResponse({ error: e instanceof Error ? e.message : "Turn failed" }, 500);
   }

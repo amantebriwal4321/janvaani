@@ -8,7 +8,7 @@ export type Utterance = {
   role: "citizen" | "janvaani";
   text: string;
   lang?: Lang;
-  via?: "voice" | "text" | "system";
+  via?: "voice" | "text" | "system" | "live";
   fields?: ProfileKey[];
 };
 

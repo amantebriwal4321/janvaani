@@ -5,10 +5,12 @@ import { Download, RotateCcw, X, Mic, FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useJanVaani } from "@/lib/client/use-janvaani";
+import { FIELD_LABELS } from "@/lib/profile/fields";
 import { cn } from "@/lib/utils";
 import { VoicePane } from "./voice-pane";
 import { FormPane } from "./form-pane";
 import { MatchesPane } from "./matches-pane";
+import { CscSlip } from "./csc-slip";
 import { MetricsBar } from "./metrics-bar";
 import { SettingsPanel } from "./settings-panel";
 import { LiveCall } from "./live-call";
@@ -20,7 +22,11 @@ export function AppShell() {
   const jv = useJanVaani();
   const [tab, setTab] = useState<Tab>("talk");
   const [phase, setPhase] = useState<"ring" | "opening" | "desk">("ring");
+  const [callSlip, setCallSlip] = useState(false);
   const confirmed = jv.match.eligible.length + jv.match.likely.length;
+  const heardLabels = jv.state.evidence
+    .filter((e) => e.origin !== "typed")
+    .map((e) => `${e.origin === "asked" ? "answered" : "heard"} ${FIELD_LABELS[e.field].label}`);
   const openDesk = useCallback(() => {
     setPhase((current) => {
       if (current !== "ring") return current;
@@ -49,7 +55,14 @@ export function AppShell() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <LiveCall enabled={Boolean(jv.health?.liveCall)} />
+            <LiveCall
+              enabled={Boolean(jv.health?.liveCall)}
+              onCallerFinal={jv.fillFromCaller}
+              heardLabels={heardLabels}
+              slipReady={confirmed > 0}
+              slipDone={jv.state.stage === "done"}
+              onOpenSlip={() => setCallSlip(true)}
+            />
             <SettingsPanel jv={jv} />
             <Button variant="ghost" size="sm" onClick={jv.exportSession} disabled={jv.state.transcript.length === 0} title="Download session JSON">
               <Download data-icon="inline-start" /> Export
@@ -85,6 +98,7 @@ export function AppShell() {
         </main>
 
         <div className="print:hidden"><MetricsBar jv={jv} /></div>
+        <CscSlip jv={jv} open={callSlip} onOpenChange={setCallSlip} />
       </div>
       )}
     </TooltipProvider>

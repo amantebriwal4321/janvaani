@@ -13,7 +13,21 @@ type Line = { who: "agent" | "you"; text: string; final: boolean };
 // Live Call mode: full-duplex WebRTC conversation with the SLNG-hosted
 // JanVaani agent (declared in unmute/janvaani). The browser joins the LiveKit
 // room the agent runtime creates; STT, LLM and TTS all run on SLNG.
-export function LiveCall({ enabled }: { enabled: boolean }) {
+export function LiveCall({
+  enabled,
+  onCallerFinal,
+  heardLabels = [],
+  slipReady = false,
+  slipDone = false,
+  onOpenSlip,
+}: {
+  enabled: boolean;
+  onCallerFinal?: (text: string) => void;
+  heardLabels?: string[];
+  slipReady?: boolean;
+  slipDone?: boolean;
+  onOpenSlip?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [call, setCall] = useState<CallState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -22,11 +36,15 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
   const [secs, setSecs] = useState(0);
   const roomRef = useRef<import("livekit-client").Room | null>(null);
   const audioElRef = useRef<HTMLDivElement>(null);
+  const onCallerFinalRef = useRef(onCallerFinal);
+  const filledSegs = useRef(new Set<string>());
+  useEffect(() => { onCallerFinalRef.current = onCallerFinal; }, [onCallerFinal]);
 
   const hangup = useCallback(async () => {
     const room = roomRef.current;
     roomRef.current = null;
     if (room) await room.disconnect();
+    // Captions stop. The filled form and CSC slip stay on the desk.
     setCall((c) => (c === "error" ? c : "ended"));
     setAgentSpeaking(false);
   }, []);
@@ -34,6 +52,7 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
   const start = useCallback(async () => {
     setError(null);
     setLines([]);
+    filledSegs.current.clear();
     setSecs(0);
     setCall("connecting");
     try {
@@ -67,6 +86,17 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
           if (idx >= 0) { const next = [...prev]; next[idx] = line; return next; }
           return [...prev, line];
         });
+        // Only the caller's final line fills the form. Agent speech, including
+        // a wrong confirmation like "आपने बताया झारखंड", must not overwrite it.
+        // A user transcript republished by the agent still counts when it is
+        // tagged with this browser's microphone track.
+        const trackId = reader.info.attributes?.["lk.transcribed_track_id"];
+        const caller = who === "you" || localMicTrack(room, trackId);
+        const trimmed = text.trim();
+        if (caller && final && trimmed && !filledSegs.current.has(segment)) {
+          filledSegs.current.add(segment);
+          onCallerFinalRef.current?.(trimmed);
+        }
       });
 
       await room.connect(data.livekitUrl, data.token);
@@ -125,6 +155,21 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
             )}
           </div>
           <p className="text-center text-xs text-muted-foreground">Speak in Hindi, close to the mic, one point at a time.</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">Your words fill the form. The agent&apos;s replies do not.</p>
+            {onOpenSlip && (
+              <Button size="sm" variant={slipDone ? "default" : "outline"} disabled={!slipReady} onClick={onOpenSlip}>
+                CSC Ready Slip
+              </Button>
+            )}
+          </div>
+          {heardLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {heardLabels.map((label) => (
+                <span key={label} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{label}</span>
+              ))}
+            </div>
+          )}
           {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>}
           <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-xl border p-3 text-sm">
             {lines.length === 0 && <p className="text-center text-xs text-muted-foreground">{call === "live" ? "Say hello. Live captions appear here." : "Captions of the call will appear here."}</p>}
@@ -138,4 +183,12 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
       </Dialog>
     </>
   );
+}
+
+function localMicTrack(room: import("livekit-client").Room, trackId: string | undefined): boolean {
+  if (!trackId) return false;
+  for (const pub of room.localParticipant.audioTrackPublications.values()) {
+    if (pub.trackSid === trackId) return true;
+  }
+  return false;
 }
