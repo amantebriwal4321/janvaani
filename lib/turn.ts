@@ -1,5 +1,5 @@
 import "server-only";
-import { CitizenProfileSchema, mergeProfile, type CitizenProfile, type FieldEvidence, type ProfileKey } from "./profile/schema";
+import { AUDIT_FIELDS, CitizenProfileSchema, mergeProfile, type CitizenProfile, type FieldEvidence, type ProfileKey } from "./profile/schema";
 import { matchSchemes, readyForAudit, nextAuditField, type MatchSummary } from "./schemes/match";
 import { ruleExtract, parseYesNo, detectLanguage } from "./extract/rules";
 import { llmExtract } from "./extract/llm";
@@ -68,13 +68,21 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     try {
       const r = await llmExtract(text, profile, input.pendingField, input.sessionId);
       detected = r.detectedLanguage;
+      const haystack = normalizeForMatch(text);
       for (const [k, v] of Object.entries(r.delta) as [ProfileKey, unknown][]) {
         if (v == null) continue;
-        if ((delta as Record<string, unknown>)[k] === undefined) {
-          (delta as Record<string, unknown>)[k] = v;
-          const ev = r.evidence.find((e) => e.field === k);
-          evidence.push(ev ?? { field: k, quote: "", origin: "spoken", confidence: 0.7 });
-        }
+        if ((delta as Record<string, unknown>)[k] !== undefined) continue;
+        // Hallucination guard: small models invent "false" for every boolean they
+        // were told about. Accept a model field only when it points at words the
+        // citizen actually said, and never let it answer the audit questions.
+        if (AUDIT_FIELDS.includes(k) && input.pendingField !== k) continue;
+        const ev = r.evidence.find((e) => e.field === k);
+        const quoted = ev?.quote ? haystack.includes(normalizeForMatch(ev.quote)) : false;
+        const literal = typeof v === "string" && haystack.includes(normalizeForMatch(v));
+        const answered = input.pendingField === k;
+        if (!quoted && !literal && !answered) continue;
+        (delta as Record<string, unknown>)[k] = v;
+        evidence.push(ev && quoted ? ev : { field: k, quote: typeof v === "string" ? v : "", origin: answered ? "asked" : "spoken", confidence: 0.6 });
       }
       llmInfo = { used: true, ms: r.llm.ms, model: r.llm.model, source: r.llm.source };
     } catch (e) {
@@ -121,6 +129,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
 }
 
 const isBooleanField = (k: ProfileKey) => BOOL_FIELDS.has(k);
+const normalizeForMatch = (s: string) => s.toLowerCase().replace(/[\s.,;:!?"'`()\-]+/g, " ").trim();
 const BOOL_FIELDS = new Set<ProfileKey>(["isWomanHeadOfHousehold", "isLandOwner", "hasLandRecord", "recentCropLoss", "paysIncomeTax", "govtEmployeeInFamily", "hasEpfoOrEsic", "hasDisability", "aadhaarNameMatchesRationCard", "aadhaarLinkedMobile", "bankAccountAadhaarSeeded"]);
 
 function coreCount(p: CitizenProfile) {
