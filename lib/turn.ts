@@ -37,7 +37,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   const text = input.text.trim();
 
   // 1. deterministic pass (always runs, zero cost, instant)
-  const rules = ruleExtract(text);
+  const rules = ruleExtract(text, profile);
   const delta: Partial<CitizenProfile> = { ...rules.delta };
   let evidence: FieldEvidence[] = [...rules.evidence];
 
