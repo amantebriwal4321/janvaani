@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { FIELD_LABELS, JARGON, acresToHectares, type CitizenProfile, type ProfileKey } from "@/lib/profile/schema";
+import { FIELD_LABELS, JARGON, acresToHectares, type CitizenProfile, type ProfileKey } from "@/lib/profile/fields";
 import { cn } from "@/lib/utils";
 import type { JanVaani } from "@/lib/client/use-janvaani";
 

@@ -1,4 +1,4 @@
-import type { CitizenProfile, FieldEvidence, ProfileKey } from "@/lib/profile/schema";
+import type { CitizenProfile, FieldEvidence, ProfileKey } from "@/lib/profile/fields";
 import type { Lang, SttModelId, TtsModelId } from "@/lib/models";
 import type { Stage } from "@/lib/dialogue";
 import type { MatchSummary } from "@/lib/schemes/match";

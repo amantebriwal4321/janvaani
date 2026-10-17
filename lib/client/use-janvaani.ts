@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { emptyProfile, type ProfileKey } from "@/lib/profile/schema";
+import { emptyProfile, type ProfileKey } from "@/lib/profile/fields";
 import { DEFAULTS, type Lang } from "@/lib/models";
 import { matchSchemes } from "@/lib/schemes/match";
 import { greeting } from "@/lib/dialogue";

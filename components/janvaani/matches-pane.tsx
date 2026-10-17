@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, CircleHelp, Ban, Sparkles, Printer, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FIELD_LABELS } from "@/lib/profile/schema";
+import { FIELD_LABELS } from "@/lib/profile/fields";
 import type { SchemeMatch } from "@/lib/schemes/match";
 import { cn } from "@/lib/utils";
 import type { JanVaani } from "@/lib/client/use-janvaani";

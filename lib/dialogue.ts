@@ -1,4 +1,4 @@
-import type { CitizenProfile, ProfileKey } from "./profile/schema";
+import type { CitizenProfile, ProfileKey } from "./profile/fields";
 import type { Lang } from "./models";
 import type { MatchSummary } from "./schemes/match";
 

@@ -1,5 +1,5 @@
-import type { CitizenProfile, ProfileKey } from "../profile/schema";
-import { AUDIT_FIELDS } from "../profile/schema";
+import type { CitizenProfile, ProfileKey } from "../profile/fields";
+import { AUDIT_FIELDS } from "../profile/fields";
 import { SCHEMES, type RuleResult, type Scheme } from "./catalog";
 
 export type SchemeMatch = RuleResult & { scheme: Scheme };

@@ -1,4 +1,4 @@
-import type { CitizenProfile, ProfileKey } from "../profile/schema";
+import type { CitizenProfile, ProfileKey } from "../profile/fields";
 
 export type Verdict = "eligible" | "likely" | "blocked" | "unknown";
 

@@ -5,7 +5,7 @@ import { Mic, Send, Square, Loader2, Volume2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { FIELD_LABELS } from "@/lib/profile/schema";
+import { FIELD_LABELS } from "@/lib/profile/fields";
 import { LANGS } from "@/lib/models";
 import { cn } from "@/lib/utils";
 import type { JanVaani } from "@/lib/client/use-janvaani";

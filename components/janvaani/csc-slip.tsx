@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Printer, AlertTriangle, CheckSquare, Square } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FIELD_LABELS, acresToHectares, type ProfileKey } from "@/lib/profile/schema";
+import { FIELD_LABELS, acresToHectares, type ProfileKey } from "@/lib/profile/fields";
 import { documentChecklist, fixFirst } from "@/lib/schemes/match";
 import type { JanVaani } from "@/lib/client/use-janvaani";
 
