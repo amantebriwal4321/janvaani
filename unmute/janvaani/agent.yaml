@@ -43,13 +43,23 @@ models:
         world_part: in
   listen:
     ears:
-      description: Sarvam Saaras v3, auto-detects 23 Indian languages, handles code-mixing
+      description: Sarvam Saaras v3 pinned to Hindi so noisy audio is transcribed, not auto-detected as English
       provider: slng
       model: "sarvam/saaras:v3"
       params:
         world_part: in
-  # No turn block: the slng target owns turn taking. Add a livekit/pipecat
-  # turn detector here only when compiling to those code targets.
+        # Saaras defaults language_code to "unknown" (auto), which turns a Hindi
+        # caller into English hallucinations. The Agents API forbids a `language`
+        # key here (it copies the agent language, which must stay "hi" or Saaras
+        # is rejected for this region). These two aliases are what Saaras reads.
+        language_code: hi-IN
+        language-code: hi-IN
+        mode: transcribe
+        # Less eager VAD: short noise should not become a sentence.
+        high_vad_sensitivity: false
+  # No turn: block. `unmute validate` rejects pace and endpointing_delay on the
+  # slng target. The Agents API still accepts turn_pace (snappy|balanced|patient);
+  # build/slng/agent.json sets patient and push-agent.mjs sends it.
 
 tools:
   - end_call

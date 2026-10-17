@@ -33,8 +33,15 @@ const compiled = JSON.parse(fs.readFileSync(bodyPath, "utf8"));
 const patch = {
   system_prompt: compiled.system_prompt,
   greeting: compiled.greeting,
+  // Catalog language for this region. "hi-IN" makes Saaras unavailable; the
+  // BCP-47 pin lives in stt_kwargs. Do not put `language` in stt_kwargs: the
+  // API reserves that key and sets it from this field.
+  language: compiled.language ?? "hi",
   models: compiled.models,
   enable_interruptions: compiled.enable_interruptions,
+  // unmute's slng target drops turn bindings. patient waits out short noise
+  // before the runtime treats a fragment as a finished sentence.
+  turn_pace: compiled.turn_pace ?? "patient",
 };
 
 const res = await fetch(`https://api.agents.slng.ai/v1/agents/${agentId}`, {
@@ -48,6 +55,8 @@ if (!res.ok) {
   process.exit(1);
 }
 console.log(`Updated agent ${json.id ?? agentId} (${json.name ?? "?"}) in region ${json.region ?? "?"}`);
+console.log(`  language ${json.language ?? "?"}  turn_pace ${json.turn_pace ?? "?"}`);
 console.log(`  stt ${json.models?.stt}  llm ${json.models?.llm}  tts ${json.models?.tts} (${json.models?.tts_voice})`);
+console.log(`  stt_kwargs ${JSON.stringify(json.models?.stt_kwargs ?? {})}`);
 console.log(`  greeting: ${String(json.greeting ?? "").slice(0, 60)}...`);
 console.log(`  prompt: ${String(json.system_prompt ?? "").length} chars`);

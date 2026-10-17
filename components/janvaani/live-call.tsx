@@ -123,11 +123,12 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
               <Button size="sm" onClick={start}><PhoneCall data-icon="inline-start" /> {call === "idle" ? "Call" : "Call again"}</Button>
             )}
           </div>
+          <p className="text-center text-xs text-muted-foreground">Speak in Hindi, close to the mic, one point at a time.</p>
           {error && <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>}
           <div className="max-h-64 space-y-1.5 overflow-y-auto rounded-xl border p-3 text-sm">
             {lines.length === 0 && <p className="text-center text-xs text-muted-foreground">{call === "live" ? "Say hello. Live captions appear here." : "Captions of the call will appear here."}</p>}
             {lines.map((l, i) => (
-              <p key={i} className={cn(l.who === "you" ? "text-right" : "", !l.final && "opacity-60")}>
+              <p key={i} className={cn(l.who === "you" ? "text-right" : "", l.final ? "text-foreground" : "text-muted-foreground italic opacity-60")}>
                 <span className="mr-1 text-[10px] uppercase text-muted-foreground">{l.who === "you" ? "you" : "janvaani"}</span>{l.text}
               </p>
             ))}
