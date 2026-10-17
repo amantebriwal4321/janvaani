@@ -3,6 +3,7 @@ import { z } from "zod";
 import { hasSlng } from "@/lib/env";
 import { SlngError, synthesize } from "@/lib/slng";
 import { DEFAULTS, LANG_IDS } from "@/lib/models";
+import { jsonResponse } from "@/lib/http";
 
 
 const Body = z.object({
@@ -13,15 +14,16 @@ const Body = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!hasSlng()) return Response.json({ error: "SLNG_API_KEY is not set" }, { status: 503 });
+  if (!hasSlng()) return jsonResponse({ error: "SLNG_API_KEY is not set" }, 503);
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success) return jsonResponse({ error: "Invalid request" }, 400);
   const { text, lang, model, voice } = parsed.data;
   try {
     const r = await synthesize(text, lang, model, voice);
     return new Response(new Uint8Array(r.wav), {
       headers: {
         "Content-Type": "audio/wav",
+        "Content-Length": String(r.wav.length),
         "Cache-Control": "no-store",
         "X-Tts-Ms": String(r.ms),
         "X-Tts-First-Audio-Ms": String(r.firstAudioMs),
@@ -31,6 +33,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     const status = e instanceof SlngError ? e.status : 502;
-    return Response.json({ error: e instanceof Error ? e.message : "TTS failed" }, { status });
+    return jsonResponse({ error: e instanceof Error ? e.message : "TTS failed" }, status);
   }
 }

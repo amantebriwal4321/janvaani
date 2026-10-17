@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CitizenProfileSchema } from "@/lib/profile/schema";
 import { runTurn } from "@/lib/turn";
 import { DEFAULT_REPLY_LANG, REPLY_LANG_IDS } from "@/lib/models";
+import { jsonResponse } from "@/lib/http";
 
 
 const Body = z.object({
@@ -21,7 +22,7 @@ const Body = z.object({
 export async function POST(req: NextRequest) {
   const t0 = Date.now();
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
-  if (!parsed.success) return Response.json({ error: "Invalid request", issues: parsed.error.issues }, { status: 400 });
+  if (!parsed.success) return jsonResponse({ error: "Invalid request", issues: parsed.error.issues }, 400);
   const b = parsed.data;
   try {
     const out = await runTurn({
@@ -33,8 +34,8 @@ export async function POST(req: NextRequest) {
       sessionId: b.sessionId.replace(/[^A-Za-z0-9_-]/g, "_"),
       useLlm: b.useLlm,
     });
-    return Response.json({ ...out, serverMs: Date.now() - t0 });
+    return jsonResponse({ ...out, serverMs: Date.now() - t0 });
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "Turn failed" }, { status: 500 });
+    return jsonResponse({ error: e instanceof Error ? e.message : "Turn failed" }, 500);
   }
 }

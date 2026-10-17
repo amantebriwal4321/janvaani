@@ -6,6 +6,7 @@ import { DEFAULTS, DEFAULT_REPLY_LANG, type Lang, type ReplyLang } from "@/lib/m
 import { matchSchemes } from "@/lib/schemes/match";
 import { greeting } from "@/lib/dialogue";
 import { describeMicError, micUnavailableReason, playWav, startRecording, stopPlayback, type Recorder } from "./audio";
+import { fetchBanner, isAbortError } from "./fetch-error";
 import type { SessionState, Settings, Status, TurnMetrics, TurnResponse, Utterance } from "./types";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -58,23 +59,39 @@ export function useJanVaani() {
 
   // Health is informational only (badge, voice playback); nothing the user can
   // click waits for it. Bounded so a hung request can never leave "checking".
+  // A timeout or strict-mode abort must not raise the banner: some browsers
+  // report that abort as TypeError "Failed to fetch" rather than AbortError.
   useEffect(() => {
     const ctrl = new AbortController();
-    const timer = window.setTimeout(() => ctrl.abort(), 6000);
+    let stop: "timeout" | "unmount" | null = null;
+    const timer = window.setTimeout(() => { stop = "timeout"; ctrl.abort(); }, 6000);
     fetch("/api/health", { cache: "no-store", signal: ctrl.signal })
       .then((r) => r.json())
       .then((h: { slng?: boolean; liveCall?: boolean }) => setHealth({ slng: Boolean(h.slng), liveCall: Boolean(h.liveCall) }))
-      .catch(() => setHealth({ slng: false, liveCall: false }))
+      .catch((e) => {
+        if (stop === "unmount") return;
+        setHealth({ slng: false, liveCall: false });
+        if (stop === "timeout" || isAbortError(e)) return;
+        const msg = fetchBanner("Health check", e, "Health check failed");
+        if (msg) setError(msg);
+      })
       .finally(() => window.clearTimeout(timer));
-    return () => { window.clearTimeout(timer); ctrl.abort(); };
+    return () => { stop = "unmount"; window.clearTimeout(timer); ctrl.abort(); };
   }, []);
 
   // Surface anything that escapes a handler or promise in the banner rather
-  // than letting it die silently in the console.
+  // than letting it die silently in the console. Aborts are the timeout above
+  // or a superseded request, not a broken page.
   useEffect(() => {
     const describe = (e: unknown) => (e instanceof Error ? e.message : typeof e === "string" ? e : "Unexpected client error");
-    const onError = (ev: ErrorEvent) => setError(`Something broke in the page: ${describe(ev.error ?? ev.message)}`);
-    const onRejection = (ev: PromiseRejectionEvent) => setError(`Something broke in the page: ${describe(ev.reason)}`);
+    const onError = (ev: ErrorEvent) => {
+      if (isAbortError(ev.error)) return;
+      setError(`Something broke in the page: ${describe(ev.error ?? ev.message)}`);
+    };
+    const onRejection = (ev: PromiseRejectionEvent) => {
+      if (isAbortError(ev.reason)) return;
+      setError(`Something broke in the page: ${describe(ev.reason)}`);
+    };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);
     return () => {
@@ -90,7 +107,7 @@ export function useJanVaani() {
   }, []);
 
   const speak = useCallback(
-    async (text: string, lang: Lang, metrics: TurnMetrics) => {
+    async (text: string, lang: Lang, metrics: TurnMetrics, what: "Greeting" | "Voice reply" = "Voice reply") => {
       if (!settings.speak || !health?.slng) return;
       setStatus("speaking");
       try {
@@ -107,7 +124,8 @@ export function useJanVaani() {
         setState((s) => ({ ...s, metrics: s.metrics.map((m) => (m.id === metrics.id ? { ...metrics } : m)) }));
         await playWav(await res.blob());
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Voice playback failed");
+        const msg = fetchBanner(what, e, "Voice playback failed");
+        if (msg) setError(msg);
       } finally {
         setStatus("idle");
       }
@@ -162,7 +180,8 @@ export function useJanVaani() {
         setStatus("idle");
         await speak(data.reply, data.lang, m);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Something went wrong");
+        const msg = fetchBanner("Turn", e, "Something went wrong");
+        if (msg) setError(msg);
         setStatus("idle");
       }
     },
@@ -230,7 +249,8 @@ export function useJanVaani() {
       }
       await sendText(data.transcript, "voice", m);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Recording failed");
+      const msg = fetchBanner("Speech recognition", e, "Recording failed");
+      if (msg) setError(msg);
       setStatus("idle");
     }
   }, [sendText, settings.stt]);
@@ -252,7 +272,7 @@ export function useJanVaani() {
     push({ role: "janvaani", text, lang, via: "system" });
     const m: TurnMetrics = { id: uid(), at: Date.now(), totalMs: 0 };
     setState((s) => ({ ...s, lang, metrics: [...s.metrics, m] }));
-    await speak(text, lang, m);
+    await speak(text, lang, m, "Greeting");
   }, [push, settings.replyLang, speak]);
 
   const setField = useCallback((field: ProfileKey, value: unknown) => {
