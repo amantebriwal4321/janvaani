@@ -31,6 +31,45 @@ const initialState = (): SessionState => ({
   recentFields: [],
 });
 
+// Merge a /api/turn result into the session. Live Call passes appendReply false
+// so the hosted agent's voice is not joined by a second written (or spoken) reply.
+function applyTurn(
+  commit: (updater: (s: SessionState) => SessionState) => void,
+  data: TurnResponse,
+  citizenId: string,
+  opts: { metrics: TurnMetrics; metricsWasPreset: boolean; appendReply: boolean; sent: SessionState["profile"] },
+) {
+  const changed = Object.keys(data.delta) as ProfileKey[];
+  commit((prev) => {
+    const profile = { ...data.profile };
+    let keptLocal = false;
+    for (const k of Object.keys(profile) as ProfileKey[]) {
+      if (changed.includes(k)) continue;
+      if (prev.profile[k] !== opts.sent[k]) {
+        (profile as Record<string, unknown>)[k] = prev.profile[k];
+        keptLocal = true;
+      }
+    }
+    return {
+      ...prev,
+      profile,
+      stage: data.stage,
+      pendingField: data.pendingField,
+      lang: data.lang,
+      match: keptLocal ? matchSchemes(profile) : data.match,
+      evidence: [...prev.evidence.filter((e) => !changed.includes(e.field)), ...data.evidence],
+      recentFields: changed,
+      metrics: opts.metricsWasPreset
+        ? prev.metrics.map((x) => (x.id === opts.metrics.id ? { ...opts.metrics } : x))
+        : [...prev.metrics, { ...opts.metrics }],
+      transcript: [
+        ...prev.transcript.map((u) => (u.id === citizenId ? { ...u, fields: changed, lang: data.detectedLang ?? data.lang } : u)),
+        ...(opts.appendReply ? [{ id: uid(), role: "janvaani" as const, text: data.reply, lang: data.lang }] : []),
+      ],
+    };
+  });
+}
+
 export function useJanVaani() {
   const [state, setState] = useState<SessionState>(initialState);
   const [settings, setSettings] = useState<Settings>({ stt: DEFAULTS.stt, tts: DEFAULTS.tts, voice: DEFAULTS.voice, replyLang: DEFAULT_REPLY_LANG, useLlm: true, speak: true });
@@ -45,17 +84,32 @@ export function useJanVaani() {
   const startingRef = useRef(false);
   const releasedWhileStartingRef = useRef(false);
   const stateRef = useRef(state);
-  useEffect(() => { stateRef.current = state; }, [state]);
+  // Every session write goes through commit so a Live Call fill and a typed
+  // turn share one profile. Copying `state` back in an effect can land between
+  // two commits and drop the newer one, so this ref is the source of truth.
+  const commit = useCallback((updater: (s: SessionState) => SessionState) => {
+    const next = updater(stateRef.current);
+    stateRef.current = next;
+    setState(next);
+  }, []);
+  const turnTail = useRef(Promise.resolve());
+  const enqueueTurn = useCallback((fn: () => Promise<void>) => {
+    const run = turnTail.current.then(fn, fn);
+    turnTail.current = run.then(() => undefined, () => undefined);
+    return run;
+  }, []);
+  // Bumped by New citizen so an in-flight turn cannot write the old profile back.
+  const epoch = useRef(0);
   const reactId = useId();
   const sessionIdRef = useRef<string>("");
   const getSessionId = useCallback(() => {
     if (!sessionIdRef.current) {
       const id = `jv-${reactId.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
       sessionIdRef.current = id;
-      setState((s) => (s.sessionId ? s : { ...s, sessionId: id }));
+      commit((s) => (s.sessionId ? s : { ...s, sessionId: id }));
     }
     return sessionIdRef.current;
-  }, [reactId]);
+  }, [reactId, commit]);
 
   // Health is informational only (badge, voice playback); nothing the user can
   // click waits for it. Bounded so a hung request can never leave "checking".
@@ -103,8 +157,10 @@ export function useJanVaani() {
   const match = useMemo(() => state.match ?? matchSchemes(state.profile), [state.match, state.profile]);
 
   const push = useCallback((u: Omit<Utterance, "id">) => {
-    setState((s) => ({ ...s, transcript: [...s.transcript, { ...u, id: uid() }] }));
-  }, []);
+    const id = uid();
+    commit((s) => ({ ...s, transcript: [...s.transcript, { ...u, id }] }));
+    return id;
+  }, [commit]);
 
   const speak = useCallback(
     async (text: string, lang: Lang, metrics: TurnMetrics, what: "Greeting" | "Voice reply" = "Voice reply") => {
@@ -121,7 +177,7 @@ export function useJanVaani() {
         metrics.ttsFirstAudioMs = Number(res.headers.get("X-Tts-First-Audio-Ms") ?? metrics.ttsMs);
         metrics.ttsModel = res.headers.get("X-Tts-Model") ?? settings.tts;
         metrics.totalMs += metrics.ttsMs;
-        setState((s) => ({ ...s, metrics: s.metrics.map((m) => (m.id === metrics.id ? { ...metrics } : m)) }));
+        commit((s) => ({ ...s, metrics: s.metrics.map((m) => (m.id === metrics.id ? { ...metrics } : m)) }));
         await playWav(await res.blob());
       } catch (e) {
         const msg = fetchBanner(what, e, "Voice playback failed");
@@ -130,7 +186,7 @@ export function useJanVaani() {
         setStatus("idle");
       }
     },
-    [settings.speak, settings.tts, settings.voice, health?.slng],
+    [settings.speak, settings.tts, settings.voice, health?.slng, commit],
   );
 
   // `opts.lang` is the language the text itself is in (demo chips know theirs).
@@ -142,51 +198,95 @@ export function useJanVaani() {
       if (!trimmed) return;
       const m: TurnMetrics = metrics ?? { id: uid(), at: Date.now(), totalMs: 0 };
       setError(null);
-      push({ role: "citizen", text: trimmed, via, lang: opts?.lang });
+      const citizenId = push({ role: "citizen", text: trimmed, via, lang: opts?.lang });
       setStatus("thinking");
-      const s = stateRef.current;
       const sessionId = getSessionId();
       const replyLang: ReplyLang = settings.replyLang === "auto" && opts?.lang ? opts.lang : settings.replyLang;
+      const ticket = epoch.current;
+      const spoken: { text: string; lang: Lang; ok: boolean } = { text: "", lang: "hi", ok: false };
       try {
-        const t0 = performance.now();
-        const res = await fetch("/api/turn", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, replyLang, sessionId, useLlm: settings.useLlm }),
+        await enqueueTurn(async () => {
+          if (ticket !== epoch.current) return;
+          const s = stateRef.current;
+          const t0 = performance.now();
+          const res = await fetch("/api/turn", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, replyLang, sessionId, useLlm: settings.useLlm }),
+          });
+          const data = (await res.json()) as TurnResponse & { error?: string };
+          if (!res.ok) throw new Error(data.error ?? "Could not process that");
+          if (ticket !== epoch.current) return;
+          m.llmMs = data.llm?.used ? data.llm.ms : 0;
+          m.llmModel = data.llm?.used ? data.llm.model : "rules only";
+          m.llmSource = data.llm?.source ?? "rules";
+          m.totalMs += Math.round(performance.now() - t0);
+          if (data.llm && !data.llm.used && data.llm.fallback && settings.useLlm) setError(`LLM unavailable, used rule engine: ${data.llm.fallback}`);
+          applyTurn(commit, data, citizenId, { metrics: m, metricsWasPreset: Boolean(metrics), appendReply: true, sent: s.profile });
+          spoken.text = data.reply;
+          spoken.lang = data.lang;
+          spoken.ok = true;
         });
-        const data = (await res.json()) as TurnResponse & { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "Could not process that");
-        m.llmMs = data.llm?.used ? data.llm.ms : 0;
-        m.llmModel = data.llm?.used ? data.llm.model : "rules only";
-        m.llmSource = data.llm?.source ?? "rules";
-        m.totalMs += Math.round(performance.now() - t0);
-        if (data.llm && !data.llm.used && data.llm.fallback && settings.useLlm) setError(`LLM unavailable, used rule engine: ${data.llm.fallback}`);
-        const changed = Object.keys(data.delta) as ProfileKey[];
-        setState((prev) => ({
-          ...prev,
-          profile: data.profile,
-          stage: data.stage,
-          pendingField: data.pendingField,
-          lang: data.lang,
-          match: data.match,
-          evidence: [...prev.evidence.filter((e) => !changed.includes(e.field)), ...data.evidence],
-          recentFields: changed,
-          metrics: metrics ? prev.metrics.map((x) => (x.id === m.id ? { ...m } : x)) : [...prev.metrics, { ...m }],
-          transcript: [
-            ...prev.transcript.map((u, i) => (i === prev.transcript.length - 1 && u.role === "citizen" ? { ...u, fields: changed, lang: data.detectedLang ?? data.lang } : u)),
-            { id: uid(), role: "janvaani", text: data.reply, lang: data.lang },
-          ],
-        }));
+        if (ticket !== epoch.current) return;
         setStatus("idle");
-        await speak(data.reply, data.lang, m);
+        if (spoken.ok) await speak(spoken.text, spoken.lang, m);
       } catch (e) {
+        if (ticket !== epoch.current) return;
         const msg = fetchBanner("Turn", e, "Something went wrong");
         if (msg) setError(msg);
         setStatus("idle");
       }
     },
-    [push, getSessionId, settings.replyLang, settings.useLlm, speak],
+    [push, getSessionId, settings.replyLang, settings.useLlm, speak, enqueueTurn, commit],
   );
+
+  // Live Call only. Final caller transcripts (never the agent's replies) go
+  // through the same extractor and audit stage as typed chat. fillOnly /
+  // speak:false tell the server this turn must not be spoken: the hosted
+  // agent is already talking, and a second /api/tts voice would double up.
+  const fillFromCaller = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const citizenId = push({ role: "citizen", text: trimmed, via: "live" });
+    const ticket = epoch.current;
+    void enqueueTurn(async () => {
+      if (ticket !== epoch.current) return;
+      const sessionId = getSessionId();
+      const s = stateRef.current;
+      const m: TurnMetrics = { id: uid(), at: Date.now(), totalMs: 0 };
+      try {
+        const t0 = performance.now();
+        const res = await fetch("/api/turn", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: trimmed,
+            profile: s.profile,
+            stage: s.stage,
+            pendingField: s.pendingField,
+            replyLang: settings.replyLang,
+            sessionId,
+            useLlm: settings.useLlm,
+            fillOnly: true,
+            speak: false,
+          }),
+        });
+        const data = (await res.json()) as TurnResponse & { error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Could not fill the form from that");
+        if (ticket !== epoch.current) return;
+        m.llmMs = data.llm?.used ? data.llm.ms : 0;
+        m.llmModel = data.llm?.used ? data.llm.model : "rules only";
+        m.llmSource = data.llm?.source ?? "rules";
+        m.totalMs += Math.round(performance.now() - t0);
+        if (data.llm && !data.llm.used && data.llm.fallback && settings.useLlm) setError(`LLM unavailable, used rule engine: ${data.llm.fallback}`);
+        applyTurn(commit, data, citizenId, { metrics: m, metricsWasPreset: false, appendReply: false, sent: s.profile });
+      } catch (e) {
+        if (ticket !== epoch.current) return;
+        const msg = fetchBanner("Live call form", e, "Could not fill the form from that");
+        if (msg) setError(msg);
+      }
+    });
+  }, [push, enqueueTurn, getSessionId, settings.replyLang, settings.useLlm, commit]);
 
   const startMic = useCallback(async () => {
     if (status !== "idle" || recorderRef.current || startingRef.current) return;
@@ -241,7 +341,7 @@ export function useJanVaani() {
       m.sttMs = data.ms ?? Math.round(performance.now() - t0);
       m.sttModel = data.model;
       m.totalMs += m.sttMs ?? 0;
-      setState((s) => ({ ...s, metrics: [...s.metrics, { ...m }] }));
+      commit((s) => ({ ...s, metrics: [...s.metrics, { ...m }] }));
       if (!data.transcript) {
         setError("Heard silence. Hold the button and speak clearly, then release.");
         setStatus("idle");
@@ -253,13 +353,16 @@ export function useJanVaani() {
       if (msg) setError(msg);
       setStatus("idle");
     }
-  }, [sendText, settings.stt]);
+  }, [sendText, settings.stt, commit]);
   useEffect(() => { stopMicRef.current = stopMic; }, [stopMic]);
 
   const reset = useCallback(() => {
     stopPlayback();
+    epoch.current += 1;
     sessionIdRef.current = "";
-    setState(initialState());
+    const fresh = initialState();
+    stateRef.current = fresh;
+    setState(fresh);
     setError(null);
     setStatus("idle");
   }, []);
@@ -271,16 +374,16 @@ export function useJanVaani() {
     const text = greeting(lang);
     push({ role: "janvaani", text, lang, via: "system" });
     const m: TurnMetrics = { id: uid(), at: Date.now(), totalMs: 0 };
-    setState((s) => ({ ...s, lang, metrics: [...s.metrics, m] }));
+    commit((s) => ({ ...s, lang, metrics: [...s.metrics, m] }));
     await speak(text, lang, m, "Greeting");
-  }, [push, settings.replyLang, speak]);
+  }, [push, settings.replyLang, speak, commit]);
 
   const setField = useCallback((field: ProfileKey, value: unknown) => {
-    setState((s) => {
+    commit((s) => {
       const profile = { ...s.profile, [field]: value };
       return { ...s, profile, match: matchSchemes(profile), recentFields: [field], evidence: [...s.evidence.filter((e) => e.field !== field), { field, quote: "edited by hand", origin: "typed", confidence: 1 }] };
     });
-  }, []);
+  }, [commit]);
 
   const exportSession = useCallback(() => {
     const sessionId = getSessionId();
@@ -292,7 +395,7 @@ export function useJanVaani() {
     URL.revokeObjectURL(a.href);
   }, [getSessionId, settings]);
 
-  return { state, match, settings, setSettings, status, error, setError, health, micLevel, recordSeconds, startMic, stopMic, sendText, reset, playGreeting, setField, exportSession };
+  return { state, match, settings, setSettings, status, error, setError, health, micLevel, recordSeconds, startMic, stopMic, sendText, fillFromCaller, reset, playGreeting, setField, exportSession };
 }
 
 export type JanVaani = ReturnType<typeof useJanVaani>;

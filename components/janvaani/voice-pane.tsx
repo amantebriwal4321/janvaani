@@ -101,6 +101,7 @@ export function VoicePane({ jv }: { jv: JanVaani }) {
               <div className={cn("mt-1.5 flex flex-wrap items-center gap-1 text-[10px] uppercase tracking-wide", u.role === "citizen" ? "text-primary-foreground/70" : "text-muted-foreground")}>
                 {u.lang && <span>{LANGS[u.lang].label}</span>}
                 {u.via === "voice" && <span>- voice</span>}
+                {u.via === "live" && <span>- live call</span>}
                 {u.fields && u.fields.length > 0 && (
                   <span className="flex flex-wrap gap-1 normal-case tracking-normal">
                     {u.fields.slice(0, 6).map((f) => (
