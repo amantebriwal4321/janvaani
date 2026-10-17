@@ -12,13 +12,19 @@ import { MatchesPane } from "./matches-pane";
 import { MetricsBar } from "./metrics-bar";
 import { SettingsPanel } from "./settings-panel";
 import { LiveCall } from "./live-call";
+import { AudienceStage } from "./audience-stage";
 
 type Tab = "talk" | "form" | "schemes";
 
 export function AppShell() {
   const jv = useJanVaani();
   const [tab, setTab] = useState<Tab>("talk");
+  const [stage, setStage] = useState(true);
   const confirmed = jv.match.eligible.length + jv.match.likely.length;
+
+  if (stage) {
+    return <AudienceStage onEnter={() => setStage(false)} />;
+  }
 
   return (
     <TooltipProvider>
@@ -41,6 +47,9 @@ export function AppShell() {
             </Button>
             <Button variant="ghost" size="sm" onClick={jv.reset} disabled={jv.state.transcript.length === 0}>
               <RotateCcw data-icon="inline-start" /> New citizen
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setStage(true)}>
+              People
             </Button>
           </div>
         </header>
