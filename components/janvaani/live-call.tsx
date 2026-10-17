@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PhoneCall, PhoneOff, Loader2, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { fetchBanner } from "@/lib/client/fetch-error";
 import { cn } from "@/lib/utils";
 
 type CallState = "idle" | "connecting" | "live" | "ended" | "error";
@@ -73,7 +74,7 @@ export function LiveCall({ enabled }: { enabled: boolean }) {
       await room.startAudio();
       setCall("live");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Call failed");
+      setError(fetchBanner("Live call", e, "Call failed") ?? "Call failed");
       setCall("error");
       await hangup();
     }
