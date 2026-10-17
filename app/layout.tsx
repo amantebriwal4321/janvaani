@@ -2,11 +2,14 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans, Noto_Sans_Devanagari, Noto_Sans_Kannada, Noto_Sans_Telugu, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// All faces are self-hosted from /_next/static/media with font-display: swap.
+// Only the Latin face is preloaded; the Indic and mono faces load on demand via
+// @font-face so they do not compete with the JS chunks on a narrow tunnel.
 const sans = Noto_Sans({ variable: "--font-sans-base", subsets: ["latin", "latin-ext"], weight: ["400", "500", "600", "700"] });
-const dev = Noto_Sans_Devanagari({ variable: "--font-dev", subsets: ["devanagari"], weight: ["400", "500", "600", "700"] });
-const kan = Noto_Sans_Kannada({ variable: "--font-kan", subsets: ["kannada"], weight: ["400", "500", "600", "700"] });
-const tel = Noto_Sans_Telugu({ variable: "--font-tel", subsets: ["telugu"], weight: ["400", "500", "600", "700"] });
-const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const dev = Noto_Sans_Devanagari({ variable: "--font-dev", subsets: ["devanagari"], weight: ["400", "500", "600", "700"], preload: false });
+const kan = Noto_Sans_Kannada({ variable: "--font-kan", subsets: ["kannada"], weight: ["400", "500", "600", "700"], preload: false });
+const tel = Noto_Sans_Telugu({ variable: "--font-tel", subsets: ["telugu"], weight: ["400", "500", "600", "700"], preload: false });
+const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], preload: false });
 
 export const metadata: Metadata = {
   title: "JanVaani - speak, and the government form fills itself",
