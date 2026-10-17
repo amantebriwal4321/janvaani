@@ -90,12 +90,23 @@ function num(token: string): number | null {
   return WORD_NUMBERS[t] ?? null;
 }
 
+// Romanised Hindi ("Hinglish"). One unambiguous function word is enough; the
+// weak list holds words that also occur in English or other Indian languages,
+// so two of those are needed before Latin text counts as Hindi.
+const HINGLISH_STRONG = rx(`\\b(hoon|hun|hu|hai|hain|mera|meri|mere|gaon|gaav|zameen|zamin|kheti|saal|kaam|karta|karti|karte|rehta|rehti|rehte|nahi|nahin|haan|umar|umr|ghar|pati|patni|beta|beti|naam|paas|ugata|ugati|kharab|baarish|fasal|pitaji|mataji|bhai|behen|shaadi|mein|hoti|hota|wala|wali|rupaye|rupaiya)\\b`, "i");
+const HINGLISH_WEAK = rx(`\\b(main|mai|se|ke|ki|ka|ko|aur|par|acre|ekad|bigha|ek|paanch)\\b`, "gi");
+
+export function isHinglish(text: string): boolean {
+  if (HINGLISH_STRONG.test(text)) return true;
+  return (text.match(HINGLISH_WEAK)?.length ?? 0) >= 2;
+}
+
 export function detectLanguage(text: string): Lang {
   if (/[\u0C80-\u0CFF]/.test(text)) return "kn";
   if (/[\u0C00-\u0C7F]/.test(text)) return "te";
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
   if (/[\u0900-\u097F]/.test(text)) return "hi";
-  if (rx(`\\b(hoon|hai|hain|mera|meri|gaon|zameen|saal|kaam|karta|karti|nahi|haan)\\b`, "i").test(text)) return "hi";
+  if (isHinglish(text)) return "hi";
   return "en";
 }
 

@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { emptyProfile, type ProfileKey } from "@/lib/profile/fields";
-import { DEFAULTS, type Lang } from "@/lib/models";
+import { DEFAULTS, DEFAULT_REPLY_LANG, type Lang, type ReplyLang } from "@/lib/models";
 import { matchSchemes } from "@/lib/schemes/match";
 import { greeting } from "@/lib/dialogue";
 import { describeMicError, micUnavailableReason, playWav, startRecording, stopPlayback, type Recorder } from "./audio";
 import type { SessionState, Settings, Status, TurnMetrics, TurnResponse, Utterance } from "./types";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+// /api/stt rejects anything over 60 s of 16 kHz PCM. Stop a little early so
+// the last ScriptProcessor buffer never tips the upload past the limit.
+export const MAX_RECORD_SECONDS = 60;
+const AUTO_STOP_AT_SECONDS = 59.5;
 
 // sessionId is filled lazily on the first user action: with cacheComponents the
 // client prerender forbids Math.random()/Date.now() during render.
@@ -27,13 +32,17 @@ const initialState = (): SessionState => ({
 
 export function useJanVaani() {
   const [state, setState] = useState<SessionState>(initialState);
-  const [settings, setSettings] = useState<Settings>({ stt: DEFAULTS.stt, tts: DEFAULTS.tts, voice: DEFAULTS.voice, lang: "auto", useLlm: true, speak: true });
+  const [settings, setSettings] = useState<Settings>({ stt: DEFAULTS.stt, tts: DEFAULTS.tts, voice: DEFAULTS.voice, replyLang: DEFAULT_REPLY_LANG, useLlm: true, speak: true });
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<{ slng: boolean; liveCall: boolean } | null>(null);
   const [micLevel, setMicLevel] = useState(0);
+  const [recordSeconds, setRecordSeconds] = useState(0);
   const recorderRef = useRef<Recorder | null>(null);
   const levelTimer = useRef<number | null>(null);
+  const stopMicRef = useRef<() => Promise<void>>(async () => {});
+  const startingRef = useRef(false);
+  const releasedWhileStartingRef = useRef(false);
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
   const reactId = useId();
@@ -106,22 +115,26 @@ export function useJanVaani() {
     [settings.speak, settings.tts, settings.voice, health?.slng],
   );
 
+  // `opts.lang` is the language the text itself is in (demo chips know theirs).
+  // When the reply language is "auto" it decides the reply; an explicit
+  // setting always wins.
   const sendText = useCallback(
-    async (text: string, via: "voice" | "text", metrics?: TurnMetrics) => {
+    async (text: string, via: "voice" | "text", metrics?: TurnMetrics, opts?: { lang?: Lang }) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       const m: TurnMetrics = metrics ?? { id: uid(), at: Date.now(), totalMs: 0 };
       setError(null);
-      push({ role: "citizen", text: trimmed, via });
+      push({ role: "citizen", text: trimmed, via, lang: opts?.lang });
       setStatus("thinking");
       const s = stateRef.current;
       const sessionId = getSessionId();
+      const replyLang: ReplyLang = settings.replyLang === "auto" && opts?.lang ? opts.lang : settings.replyLang;
       try {
         const t0 = performance.now();
         const res = await fetch("/api/turn", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, lang: settings.lang, sessionId, useLlm: settings.useLlm }),
+          body: JSON.stringify({ text: trimmed, profile: s.profile, stage: s.stage, pendingField: s.pendingField, replyLang, sessionId, useLlm: settings.useLlm }),
         });
         const data = (await res.json()) as TurnResponse & { error?: string };
         if (!res.ok) throw new Error(data.error ?? "Could not process that");
@@ -142,7 +155,7 @@ export function useJanVaani() {
           recentFields: changed,
           metrics: metrics ? prev.metrics.map((x) => (x.id === m.id ? { ...m } : x)) : [...prev.metrics, { ...m }],
           transcript: [
-            ...prev.transcript.map((u, i) => (i === prev.transcript.length - 1 && u.role === "citizen" ? { ...u, fields: changed, lang: data.lang } : u)),
+            ...prev.transcript.map((u, i) => (i === prev.transcript.length - 1 && u.role === "citizen" ? { ...u, fields: changed, lang: data.detectedLang ?? data.lang } : u)),
             { id: uid(), role: "janvaani", text: data.reply, lang: data.lang },
           ],
         }));
@@ -153,38 +166,56 @@ export function useJanVaani() {
         setStatus("idle");
       }
     },
-    [push, getSessionId, settings.lang, settings.useLlm, speak],
+    [push, getSessionId, settings.replyLang, settings.useLlm, speak],
   );
 
   const startMic = useCallback(async () => {
-    if (status !== "idle") return;
+    if (status !== "idle" || recorderRef.current || startingRef.current) return;
     stopPlayback();
     setError(null);
     const unavailable = micUnavailableReason();
     if (unavailable) { setError(unavailable); return; }
     if (health && !health.slng) { setError("Voice needs SLNG_API_KEY on the server. You can still type below."); return; }
+    startingRef.current = true;
+    releasedWhileStartingRef.current = false;
     try {
-      recorderRef.current = await startRecording();
+      const rec = await startRecording();
+      startingRef.current = false;
+      // The button was released while the permission prompt / device was
+      // still opening: there is nothing worth sending, drop it quietly.
+      if (releasedWhileStartingRef.current) { void rec.stop(); return; }
+      recorderRef.current = rec;
+      const startedAt = performance.now();
+      setRecordSeconds(0);
       setStatus("recording");
-      levelTimer.current = window.setInterval(() => setMicLevel(recorderRef.current?.level() ?? 0), 80);
+      levelTimer.current = window.setInterval(() => {
+        setMicLevel(recorderRef.current?.level() ?? 0);
+        const secs = (performance.now() - startedAt) / 1000;
+        setRecordSeconds(secs);
+        if (secs >= AUTO_STOP_AT_SECONDS) void stopMicRef.current();
+      }, 80);
     } catch (e) {
+      startingRef.current = false;
       setError(describeMicError(e));
     }
   }, [status, health]);
 
   const stopMic = useCallback(async () => {
     const rec = recorderRef.current;
-    if (!rec) return;
+    if (!rec) { if (startingRef.current) releasedWhileStartingRef.current = true; return; }
     recorderRef.current = null;
     if (levelTimer.current) { clearInterval(levelTimer.current); levelTimer.current = null; }
     setMicLevel(0);
+    setRecordSeconds(0);
     setStatus("transcribing");
     const m: TurnMetrics = { id: uid(), at: Date.now(), totalMs: 0 };
     try {
       const { pcm16k, seconds } = await rec.stop();
       m.audioSeconds = Math.round(seconds * 10) / 10;
       const t0 = performance.now();
-      const url = `/api/stt?model=${encodeURIComponent(settings.stt)}${settings.lang !== "auto" ? `&lang=${settings.lang}` : ""}`;
+      // No language hint: Saaras auto-detects, and pinning the reply language
+      // must not force a Kannada speaker's audio through Hindi recognition.
+      const url = `/api/stt?model=${encodeURIComponent(settings.stt)}`;
       const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: pcm16k });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not hear that");
@@ -202,7 +233,8 @@ export function useJanVaani() {
       setError(e instanceof Error ? e.message : "Recording failed");
       setStatus("idle");
     }
-  }, [sendText, settings.stt, settings.lang]);
+  }, [sendText, settings.stt]);
+  useEffect(() => { stopMicRef.current = stopMic; }, [stopMic]);
 
   const reset = useCallback(() => {
     stopPlayback();
@@ -213,13 +245,15 @@ export function useJanVaani() {
   }, []);
 
   const playGreeting = useCallback(async () => {
-    const lang: Lang = settings.lang === "auto" ? "hi" : settings.lang;
+    // "auto" before anyone has spoken: fall back to the session's current
+    // language, which starts as Hindi and tracks the citizen afterwards.
+    const lang: Lang = settings.replyLang === "auto" ? stateRef.current.lang : settings.replyLang;
     const text = greeting(lang);
     push({ role: "janvaani", text, lang, via: "system" });
     const m: TurnMetrics = { id: uid(), at: Date.now(), totalMs: 0 };
     setState((s) => ({ ...s, lang, metrics: [...s.metrics, m] }));
     await speak(text, lang, m);
-  }, [push, settings.lang, speak]);
+  }, [push, settings.replyLang, speak]);
 
   const setField = useCallback((field: ProfileKey, value: unknown) => {
     setState((s) => {
@@ -238,7 +272,7 @@ export function useJanVaani() {
     URL.revokeObjectURL(a.href);
   }, [getSessionId, settings]);
 
-  return { state, match, settings, setSettings, status, error, setError, health, micLevel, startMic, stopMic, sendText, reset, playGreeting, setField, exportSession };
+  return { state, match, settings, setSettings, status, error, setError, health, micLevel, recordSeconds, startMic, stopMic, sendText, reset, playGreeting, setField, exportSession };
 }
 
 export type JanVaani = ReturnType<typeof useJanVaani>;

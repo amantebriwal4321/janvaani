@@ -1,5 +1,5 @@
 import type { CitizenProfile, FieldEvidence, ProfileKey } from "@/lib/profile/fields";
-import type { Lang, SttModelId, TtsModelId } from "@/lib/models";
+import type { Lang, ReplyLang, SttModelId, TtsModelId } from "@/lib/models";
 import type { Stage } from "@/lib/dialogue";
 import type { MatchSummary } from "@/lib/schemes/match";
 
@@ -33,7 +33,8 @@ export type Settings = {
   stt: SttModelId;
   tts: TtsModelId;
   voice: string;
-  lang: Lang | "auto";
+  // Language JanVaani replies and speaks in; "auto" follows the citizen.
+  replyLang: ReplyLang;
   useLlm: boolean;
   speak: boolean;
 };
@@ -60,6 +61,7 @@ export type TurnResponse = {
   pendingField: ProfileKey | null;
   reply: string;
   lang: Lang;
+  detectedLang: Lang;
   llm: { used: boolean; ms: number; model: string; source: string; fallback?: string } | null;
   newlyEligible: string[];
   serverMs: number;

@@ -36,17 +36,17 @@ const GREETING: Q = {
   en: "Hello, I am JanVaani. Tell me about yourself: where you live, what work you do, and your age. I will tell you which government schemes you can get.",
 };
 
-const SCHEME_NAMES: Record<string, Partial<Q>> = {
-  pmjay: { hi: "आयुष्मान भारत कार्ड", kn: "ಆಯುಷ್ಮಾನ್ ಭಾರತ ಕಾರ್ಡ್", te: "ఆయుష్మాన్ భారత్ కార్డు", en: "Ayushman Bharat card" },
-  vay_vandana: { hi: "70 साल वालों का आयुष्मान वय वंदना कार्ड", kn: "70 ವರ್ಷ ಮೇಲ್ಪಟ್ಟವರಿಗೆ ಆಯುಷ್ಮಾನ್ ವಯ ವಂದನಾ ಕಾರ್ಡ್", en: "Ayushman Vay Vandana card for seniors" },
-  pm_kisan: { hi: "पीएम किसान के 6,000 रुपये", kn: "ಪಿಎಂ ಕಿಸಾನ್ 6,000 ರೂಪಾಯಿ", te: "పిఎం కిసాన్ 6,000 రూపాయలు", en: "PM-KISAN 6,000 rupees a year" },
-  pmfby: { hi: "फसल बीमा का क्लेम", kn: "ಬೆಳೆ ವಿಮೆ ಕ್ಲೈಮ್", te: "పంట బీమా క్లెయిమ్", en: "crop insurance claim" },
-  eshram: { hi: "ई-श्रम कार्ड", kn: "ಇ-ಶ್ರಮ್ ಕಾರ್ಡ್", te: "ఇ-శ్రమ్ కార్డు", en: "e-Shram card" },
-  vishwakarma: { hi: "पीएम विश्वकर्मा", kn: "ಪಿಎಂ ವಿಶ್ವಕರ್ಮ", en: "PM Vishwakarma" },
-  pmay_g: { hi: "पीएम आवास का पक्का घर", kn: "ಪಿಎಂ ಆವಾಸ್ ಪಕ್ಕಾ ಮನೆ", en: "PM Awas house" },
-  old_age_pension: { hi: "वृद्धावस्था पेंशन", kn: "ಸಂಧ್ಯಾ ಸುರಕ್ಷಾ ಪಿಂಚಣಿ", en: "old age pension" },
-  gruha_lakshmi: { hi: "गृह लक्ष्मी के 2,000 रुपये महीना", kn: "ಗೃಹ ಲಕ್ಷ್ಮಿ ತಿಂಗಳಿಗೆ 2,000 ರೂಪಾಯಿ", en: "Gruha Lakshmi 2,000 rupees a month" },
-  widow_pension: { hi: "विधवा पेंशन", kn: "ವಿಧವಾ ವೇತನ", en: "widow pension" },
+const SCHEME_NAMES: Record<string, Q> = {
+  pmjay: { hi: "आयुष्मान भारत कार्ड", kn: "ಆಯುಷ್ಮಾನ್ ಭಾರತ ಕಾರ್ಡ್", te: "ఆయుష్మాన్ భారత్ కార్డు", ta: "ஆயுஷ்மான் பாரத் அட்டை", mr: "आयुष्मान भारत कार्ड", en: "Ayushman Bharat card" },
+  vay_vandana: { hi: "70 साल वालों का आयुष्मान वय वंदना कार्ड", kn: "70 ವರ್ಷ ಮೇಲ್ಪಟ್ಟವರಿಗೆ ಆಯುಷ್ಮಾನ್ ವಯ ವಂದನಾ ಕಾರ್ಡ್", te: "70 ఏళ్లు పైబడిన వారికి ఆయుష్మాన్ వయ వందన కార్డు", ta: "70 வயதுக்கு மேற்பட்டோருக்கான ஆயுஷ்மான் வய வந்தனா அட்டை", mr: "70 वर्षांवरील लोकांसाठी आयुष्मान वय वंदना कार्ड", en: "Ayushman Vay Vandana card for seniors" },
+  pm_kisan: { hi: "पीएम किसान के 6,000 रुपये", kn: "ಪಿಎಂ ಕಿಸಾನ್ 6,000 ರೂಪಾಯಿ", te: "పిఎం కిసాన్ 6,000 రూపాయలు", ta: "பிஎம் கிசான் 6,000 ரூபாய்", mr: "पीएम किसानचे 6,000 रुपये", en: "PM-KISAN 6,000 rupees a year" },
+  pmfby: { hi: "फसल बीमा का क्लेम", kn: "ಬೆಳೆ ವಿಮೆ ಕ್ಲೈಮ್", te: "పంట బీమా క్లెయిమ్", ta: "பயிர் காப்பீட்டு கோரிக்கை", mr: "पीक विमा क्लेम", en: "crop insurance claim" },
+  eshram: { hi: "ई-श्रम कार्ड", kn: "ಇ-ಶ್ರಮ್ ಕಾರ್ಡ್", te: "ఇ-శ్రమ్ కార్డు", ta: "இ-ஷ்ரம் அட்டை", mr: "ई-श्रम कार्ड", en: "e-Shram card" },
+  vishwakarma: { hi: "पीएम विश्वकर्मा", kn: "ಪಿಎಂ ವಿಶ್ವಕರ್ಮ", te: "పిఎం విశ్వకర్మ", ta: "பிஎம் விஸ்வகர்மா", mr: "पीएम विश्वकर्मा", en: "PM Vishwakarma" },
+  pmay_g: { hi: "पीएम आवास का पक्का घर", kn: "ಪಿಎಂ ಆವಾಸ್ ಪಕ್ಕಾ ಮನೆ", te: "పిఎం ఆవాస్ పక్కా ఇల్లు", ta: "பிஎம் ஆவாஸ் பக்கா வீடு", mr: "पीएम आवासचे पक्के घर", en: "PM Awas house" },
+  old_age_pension: { hi: "वृद्धावस्था पेंशन", kn: "ಸಂಧ್ಯಾ ಸುರಕ್ಷಾ ಪಿಂಚಣಿ", te: "వృద్ధాప్య పింఛను", ta: "முதியோர் ஓய்வூதியம்", mr: "वृद्धापकाळ निवृत्तीवेतन", en: "old age pension" },
+  gruha_lakshmi: { hi: "गृह लक्ष्मी के 2,000 रुपये महीना", kn: "ಗೃಹ ಲಕ್ಷ್ಮಿ ತಿಂಗಳಿಗೆ 2,000 ರೂಪಾಯಿ", te: "గృహ లక్ష్మి నెలకు 2,000 రూపాయలు", ta: "கிருஹ லட்சுமி மாதம் 2,000 ரூபாய்", mr: "गृह लक्ष्मीचे महिन्याला 2,000 रुपये", en: "Gruha Lakshmi 2,000 rupees a month" },
+  widow_pension: { hi: "विधवा पेंशन", kn: "ವಿಧವಾ ವೇತನ", te: "వితంతు పింఛను", ta: "விதவை ஓய்வூதியம்", mr: "विधवा निवृत्तीवेतन", en: "widow pension" },
 };
 
 const TEMPLATES = {

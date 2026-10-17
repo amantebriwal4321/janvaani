@@ -9,6 +9,14 @@ export const LANGS: Record<Lang, { label: string; native: string; bcp47: string 
   en: { label: "English", native: "English", bcp47: "en-IN" },
 };
 
+export const LANG_IDS = Object.keys(LANGS) as Lang[];
+export const isLang = (v: unknown): v is Lang => typeof v === "string" && v in LANGS;
+
+// The language JanVaani answers and speaks in. "auto" follows whatever the
+// citizen used in their last message (with romanised Hindi counted as Hindi).
+export type ReplyLang = Lang | "auto";
+export const DEFAULT_REPLY_LANG: ReplyLang = "hi";
+
 export type SttModelId = "sarvam/saaras:v3" | "slng/deepgram/nova:3-hi" | "soniox/speech-ai:rt-v5";
 export type TtsModelId = "sarvam/bulbul:v3" | "deepgram/aura:2";
 

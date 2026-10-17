@@ -5,7 +5,7 @@ import { ruleExtract, parseYesNo, detectLanguage } from "./extract/rules";
 import { llmExtract } from "./extract/llm";
 import { composeReply, type Stage } from "./dialogue";
 import { hasSlng } from "./env";
-import type { Lang } from "./models";
+import type { Lang, ReplyLang } from "./models";
 import type { LlmResult } from "./slng";
 
 export type TurnInput = {
@@ -13,7 +13,8 @@ export type TurnInput = {
   profile: CitizenProfile;
   stage: Stage;
   pendingField: ProfileKey | null;
-  lang: Lang | "auto";
+  // Language to answer in. "auto" = the language the citizen just used.
+  replyLang: ReplyLang;
   sessionId: string;
   useLlm: boolean;
 };
@@ -26,7 +27,10 @@ export type TurnOutput = {
   stage: Stage;
   pendingField: ProfileKey | null;
   reply: string;
+  // Language the reply is written in (what TTS should speak).
   lang: Lang;
+  // Language the citizen's message was in.
+  detectedLang: Lang;
   llm: { used: boolean; ms: number; model: string; source: string; fallback?: string } | null;
   newlyEligible: string[];
 };
@@ -90,7 +94,11 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     }
   }
 
-  const lang: Lang = input.lang !== "auto" ? input.lang : detected ?? detectLanguage(text);
+  // Script and Hinglish heuristics win over the model's guess: small models
+  // label romanised Hindi as English, and the citizen then hears English back.
+  const heuristic = detectLanguage(text);
+  const detectedLang: Lang = heuristic !== "en" ? heuristic : detected ?? "en";
+  const lang: Lang = input.replyLang !== "auto" ? input.replyLang : detectedLang;
 
   // Only report what actually changed; models like to echo known fields back.
   for (const k of Object.keys(delta) as ProfileKey[]) {
@@ -125,7 +133,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
 
   const reply = composeReply({ lang, profile: merged, match: after, extractedAnything: Object.keys(delta).length > 0, stage, nextField, newlyEligible });
 
-  return { profile: merged, delta, evidence, match: after, stage, pendingField: nextField, reply, lang, llm: llmInfo, newlyEligible };
+  return { profile: merged, delta, evidence, match: after, stage, pendingField: nextField, reply, lang, detectedLang, llm: llmInfo, newlyEligible };
 }
 
 const isBooleanField = (k: ProfileKey) => BOOL_FIELDS.has(k);

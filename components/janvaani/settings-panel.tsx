@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BULBUL_VOICES, LANGS, STT_MODELS, TTS_MODELS, type Lang, type SttModelId, type TtsModelId } from "@/lib/models";
+import { BULBUL_VOICES, LANG_IDS, LANGS, STT_MODELS, TTS_MODELS, type ReplyLang, type SttModelId, type TtsModelId } from "@/lib/models";
 import type { JanVaani } from "@/lib/client/use-janvaani";
 
 export function SettingsPanel({ jv }: { jv: JanVaani }) {
@@ -24,12 +24,12 @@ export function SettingsPanel({ jv }: { jv: JanVaani }) {
           <DialogDescription>Swap any component without changing a line of app code. Every option runs through SLNG&apos;s India gateway and bills to the same project.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Row label="Language" hint="Auto detects from speech; pin one for a fixed-language kiosk.">
-            <Select value={settings.lang} onValueChange={(v) => v && upd("lang", v as Lang | "auto")}>
+          <Row label="Reply language" hint="JanVaani answers and speaks in this language whatever the citizen types or says. Auto follows the citizen's own language (romanised Hindi counts as Hindi).">
+            <Select value={settings.replyLang} onValueChange={(v) => v && upd("replyLang", v as ReplyLang)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Auto-detect</SelectItem>
-                {(Object.keys(LANGS) as Lang[]).map((l) => <SelectItem key={l} value={l}>{LANGS[l].native} ({LANGS[l].label})</SelectItem>)}
+                {LANG_IDS.map((l) => <SelectItem key={l} value={l}>{LANGS[l].native} ({LANGS[l].label})</SelectItem>)}
+                <SelectItem value="auto">Auto (match the citizen)</SelectItem>
               </SelectContent>
             </Select>
           </Row>
