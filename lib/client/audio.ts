@@ -5,9 +5,30 @@ export type Recorder = {
   level: () => number;
 };
 
+// getUserMedia only exists in secure contexts (https, localhost, 127.0.0.1).
+// A preview served from a LAN IP or an http proxy has no navigator.mediaDevices
+// at all, which would otherwise surface as a cryptic TypeError.
+export function micUnavailableReason(): string | null {
+  if (typeof window === "undefined") return "Microphone is only available in the browser.";
+  if (!window.isSecureContext) return `Mic needs https or localhost (this page is on ${window.location.host}). You can still type below.`;
+  if (!navigator.mediaDevices?.getUserMedia) return "This browser does not expose a microphone API. You can still type below.";
+  if (typeof AudioContext === "undefined") return "This browser cannot process microphone audio. You can still type below.";
+  return null;
+}
+
+export function describeMicError(e: unknown): string {
+  const name = e instanceof DOMException ? e.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") return "Microphone permission was denied. Allow the mic in the address bar, or type below.";
+  if (name === "NotFoundError" || name === "OverconstrainedError") return "No microphone was found on this device. You can still type below.";
+  if (name === "NotReadableError") return "The microphone is in use by another app. You can still type below.";
+  return `Could not start the microphone${e instanceof Error && e.message ? ` (${e.message})` : ""}. You can still type below.`;
+}
+
 // Captures mic audio, downsamples to 16 kHz mono PCM16 on the client so the
 // server can forward it to SLNG STT without transcoding.
 export async function startRecording(): Promise<Recorder> {
+  const unavailable = micUnavailableReason();
+  if (unavailable) throw new Error(unavailable);
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
   const ctx = new AudioContext();
   const source = ctx.createMediaStreamSource(stream);

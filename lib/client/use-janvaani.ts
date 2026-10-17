@@ -5,7 +5,7 @@ import { emptyProfile, type ProfileKey } from "@/lib/profile/schema";
 import { DEFAULTS, type Lang } from "@/lib/models";
 import { matchSchemes } from "@/lib/schemes/match";
 import { greeting } from "@/lib/dialogue";
-import { playWav, startRecording, stopPlayback, type Recorder } from "./audio";
+import { describeMicError, micUnavailableReason, playWav, startRecording, stopPlayback, type Recorder } from "./audio";
 import type { SessionState, Settings, Status, TurnMetrics, TurnResponse, Utterance } from "./types";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -47,8 +47,31 @@ export function useJanVaani() {
     return sessionIdRef.current;
   }, [reactId]);
 
+  // Health is informational only (badge, voice playback); nothing the user can
+  // click waits for it. Bounded so a hung request can never leave "checking".
   useEffect(() => {
-    fetch("/api/health").then((r) => r.json()).then(setHealth).catch(() => setHealth({ slng: false, liveCall: false }));
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 6000);
+    fetch("/api/health", { cache: "no-store", signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((h: { slng?: boolean; liveCall?: boolean }) => setHealth({ slng: Boolean(h.slng), liveCall: Boolean(h.liveCall) }))
+      .catch(() => setHealth({ slng: false, liveCall: false }))
+      .finally(() => window.clearTimeout(timer));
+    return () => { window.clearTimeout(timer); ctrl.abort(); };
+  }, []);
+
+  // Surface anything that escapes a handler or promise in the banner rather
+  // than letting it die silently in the console.
+  useEffect(() => {
+    const describe = (e: unknown) => (e instanceof Error ? e.message : typeof e === "string" ? e : "Unexpected client error");
+    const onError = (ev: ErrorEvent) => setError(`Something broke in the page: ${describe(ev.error ?? ev.message)}`);
+    const onRejection = (ev: PromiseRejectionEvent) => setError(`Something broke in the page: ${describe(ev.reason)}`);
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
   }, []);
 
   const match = useMemo(() => state.match ?? matchSchemes(state.profile), [state.match, state.profile]);
@@ -137,14 +160,17 @@ export function useJanVaani() {
     if (status !== "idle") return;
     stopPlayback();
     setError(null);
+    const unavailable = micUnavailableReason();
+    if (unavailable) { setError(unavailable); return; }
+    if (health && !health.slng) { setError("Voice needs SLNG_API_KEY on the server. You can still type below."); return; }
     try {
       recorderRef.current = await startRecording();
       setStatus("recording");
       levelTimer.current = window.setInterval(() => setMicLevel(recorderRef.current?.level() ?? 0), 80);
-    } catch {
-      setError("Microphone permission was denied. You can still type below.");
+    } catch (e) {
+      setError(describeMicError(e));
     }
-  }, [status]);
+  }, [status, health]);
 
   const stopMic = useCallback(async () => {
     const rec = recorderRef.current;

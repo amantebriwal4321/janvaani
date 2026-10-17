@@ -103,7 +103,7 @@ export function VoicePane({ jv }: { jv: JanVaani }) {
 
       <footer className="border-t p-3">
         <div className="flex items-end gap-2">
-          <PushToTalk status={status} level={micLevel} disabled={!health?.slng || busy} onStart={startMic} onStop={stopMic} />
+          <PushToTalk status={status} level={micLevel} disabled={busy} dimmed={health != null && !health.slng} onStart={startMic} onStop={stopMic} />
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -131,7 +131,9 @@ export function VoicePane({ jv }: { jv: JanVaani }) {
   );
 }
 
-function PushToTalk({ status, level, disabled, onStart, onStop }: { status: string; level: number; disabled: boolean; onStart: () => void; onStop: () => void }) {
+// Never disabled while idle: pressing it with no SLNG key or in an insecure
+// context produces an explanatory banner instead of a silent dead button.
+function PushToTalk({ status, level, disabled, dimmed, onStart, onStop }: { status: string; level: number; disabled: boolean; dimmed: boolean; onStart: () => void; onStop: () => void }) {
   const recording = status === "recording";
   return (
     <button
@@ -144,11 +146,11 @@ function PushToTalk({ status, level, disabled, onStart, onStop }: { status: stri
       onKeyUp={(e) => { if (e.key === " " && recording) { e.preventDefault(); onStop(); } }}
       aria-pressed={recording}
       aria-label={recording ? "Release to send" : "Hold to speak"}
-      title={disabled ? "Voice needs SLNG_API_KEY" : "Hold to speak"}
+      title={dimmed ? "Voice needs SLNG_API_KEY on the server" : "Hold to speak"}
       className={cn(
         "relative flex size-11 shrink-0 select-none items-center justify-center rounded-full border-2 transition-all touch-none",
         recording ? "border-red-500 bg-red-500 text-white" : "border-primary bg-primary/10 text-primary hover:bg-primary/20",
-        disabled && !recording && "opacity-40",
+        (disabled || dimmed) && !recording && "opacity-40",
       )}
     >
       {recording && <span className="absolute inset-0 rounded-full bg-red-500/40" style={{ transform: `scale(${1 + level * 0.9})`, transition: "transform 80ms linear" }} />}
