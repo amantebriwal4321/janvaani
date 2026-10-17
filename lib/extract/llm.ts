@@ -35,7 +35,18 @@ Field schema (omit fields not mentioned; never guess; null means unknown):
 - aadhaarNameMatchesRationCard, aadhaarLinkedMobile, bankAccountAadhaarSeeded: boolean, only when the citizen answers that specific question.
 
 If the message is a yes/no answer and a "pendingField" is given, set that field from the answer.
-Quotes in evidence must be verbatim substrings of the citizen's message.`;
+Quotes in evidence must be verbatim substrings of the citizen's message.
+Only include fields that are NEW or CHANGED compared to "Known so far". Do not repeat known values.
+
+Examples:
+Citizen: "Main Kolar ke paas ek gaon se hoon, 2 acre mein tamatar ugata hoon, umar 45 saal hai. Pitaji 72 saal ke hain."
+-> {"fields":{"district":"Kolar","state":"Karnataka","areaType":"Rural","landAcres":2,"isLandOwner":true,"occupation":"tomato farmer","occupationClass":"farmer","age":45,"householdMembers70Plus":1},"evidence":[{"field":"age","quote":"umar 45 saal","confidence":0.95},{"field":"householdMembers70Plus","quote":"Pitaji 72 saal ke hain","confidence":0.9}],"detectedLanguage":"hi"}
+
+Citizen: "ನಾನು ತುಮಕೂರಿನವನು, ವಯಸ್ಸು ೩೮. ಟೈಲರ್ ಕೆಲಸ ಮಾಡುತ್ತೇನೆ. ಬಿಪಿಎಲ್ ಕಾರ್ಡ್ ಇದೆ."
+-> {"fields":{"district":"Tumakuru","state":"Karnataka","age":38,"occupation":"tailor","occupationClass":"artisan","artisanTrade":"tailor","rationCardType":"BPL"},"evidence":[{"field":"occupationClass","quote":"ಟೈಲರ್ ಕೆಲಸ","confidence":0.9},{"field":"rationCardType","quote":"ಬಿಪಿಎಲ್ ಕಾರ್ಡ್","confidence":0.95}],"detectedLanguage":"kn"}
+
+Citizen: "నేను ఇంటి పని చేస్తాను, నా భర్త చనిపోయారు, వయసు 52."
+-> {"fields":{"occupation":"domestic worker","occupationClass":"domestic_worker","maritalStatus":"widowed","gender":"female","age":52},"evidence":[{"field":"maritalStatus","quote":"నా భర్త చనిపోయారు","confidence":0.9}],"detectedLanguage":"te"}`;
 
 export async function llmExtract(text: string, profile: CitizenProfile, pendingField: ProfileKey | null, sessionId: string): Promise<Extraction> {
   const known = Object.fromEntries(Object.entries(profile).filter(([, v]) => v != null));

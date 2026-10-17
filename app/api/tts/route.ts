@@ -4,8 +4,6 @@ import { hasSlng } from "@/lib/env";
 import { SlngError, synthesize } from "@/lib/slng";
 import { DEFAULTS } from "@/lib/models";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
 
 const Body = z.object({
   text: z.string().min(1).max(1200),

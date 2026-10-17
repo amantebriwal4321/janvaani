@@ -13,6 +13,7 @@ export type MatchSummary = {
   unlocks: number;
 };
 
+const LAND_FIELDS: ProfileKey[] = ["landAcres", "isLandOwner", "hasLandRecord", "recentCropLoss"];
 const CORE_ORDER: ProfileKey[] = ["age", "occupationClass", "areaType", "landAcres", "rationCardType", "maritalStatus", "householdMembers70Plus", "housingType"];
 
 export function matchSchemes(p: CitizenProfile): MatchSummary {
@@ -24,7 +25,10 @@ export function matchSchemes(p: CitizenProfile): MatchSummary {
     if (m.verdict === "blocked") continue;
     for (const k of m.missing) {
       if (AUDIT_FIELDS.includes(k)) continue;
-      score.set(k, (score.get(k) ?? 0) + (m.verdict === "unknown" ? 2 : 1));
+      let w = m.verdict === "unknown" ? 2 : 1;
+      // Don't lead with farmland questions for someone who just said they are a tailor or a driver.
+      if (LAND_FIELDS.includes(k) && p.occupationClass && !["farmer", "farm_labourer", "other"].includes(p.occupationClass)) w *= 0.4;
+      score.set(k, (score.get(k) ?? 0) + w);
     }
   }
   if (score.size === 0) {

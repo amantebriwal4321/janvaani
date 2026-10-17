@@ -1,7 +1,6 @@
 import { env, hasSlng } from "@/lib/env";
 import { SlngError, createWebSession } from "@/lib/slng";
 
-export const runtime = "nodejs";
 
 export async function POST() {
   if (!hasSlng() || !process.env.SLNG_AGENT_ID) return Response.json({ error: "Live Call needs SLNG_API_KEY and SLNG_AGENT_ID" }, { status: 503 });

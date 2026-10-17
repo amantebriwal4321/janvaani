@@ -52,9 +52,10 @@ const SCHEME_NAMES: Record<string, Partial<Q>> = {
 const TEMPLATES = {
   youCanGet: { hi: "आपको {list} मिल सकता है।", kn: "ನಿಮಗೆ {list} ಸಿಗಬಹುದು.", te: "మీకు {list} రావచ్చు.", ta: "உங்களுக்கு {list} கிடைக்கலாம்.", mr: "तुम्हाला {list} मिळू शकते.", en: "You can get {list}." } as Q,
   and: { hi: " और ", kn: " ಮತ್ತು ", te: " మరియు ", ta: " மற்றும் ", mr: " आणि ", en: " and " } as Q,
+  more: { hi: "{n} और योजनाएँ", kn: "ಇನ್ನೂ {n} ಯೋಜನೆಗಳು", te: "మరో {n} పథకాలు", ta: "மேலும் {n} திட்டங்கள்", mr: "आणखी {n} योजना", en: "{n} more schemes" } as Q,
   auditIntro: { hi: "अब तीन छोटी बातें जाँच लेते हैं ताकि CSC पर फॉर्म रिजेक्ट न हो।", kn: "ಈಗ CSC ಯಲ್ಲಿ ಫಾರ್ಮ್ ತಿರಸ್ಕೃತವಾಗದಂತೆ ಮೂರು ಸಣ್ಣ ವಿಷಯ ಪರಿಶೀಲಿಸೋಣ.", te: "ఇప్పుడు CSCలో ఫారం తిరస్కరించబడకుండా మూడు చిన్న విషయాలు చూద్దాం.", ta: "இப்போது CSC-யில் படிவம் நிராகரிக்கப்படாமல் இருக்க மூன்று சிறிய விஷயங்களை சரிபார்ப்போம்.", mr: "आता CSC वर फॉर्म नाकारला जाऊ नये म्हणून तीन छोट्या गोष्टी तपासूया.", en: "Now let us check three small things so the CSC does not reject your form." } as Q,
   done: { hi: "आपकी CSC पर्ची तैयार है। इसे दिखाकर एक ही बार में काम हो जाएगा।", kn: "ನಿಮ್ಮ CSC ಚೀಟಿ ಸಿದ್ಧವಾಗಿದೆ. ಇದನ್ನು ತೋರಿಸಿದರೆ ಒಂದೇ ಬಾರಿಗೆ ಕೆಲಸ ಆಗುತ್ತದೆ.", te: "మీ CSC స్లిప్ సిద్ధంగా ఉంది. దీన్ని చూపిస్తే ఒక్కసారిలో పని అవుతుంది.", ta: "உங்கள் CSC சீட்டு தயார். இதைக் காட்டினால் ஒரே முறையில் வேலை முடியும்.", mr: "तुमची CSC पावती तयार आहे. ती दाखवली की एकाच फेरीत काम होईल.", en: "Your CSC Ready Slip is done. Show it at the centre and finish in one visit." } as Q,
-  fixFirst: { hi: "लेकिन पहले यह ठीक करवाना होगा: {fix}", kn: "ಆದರೆ ಮೊದಲು ಇದನ್ನು ಸರಿಪಡಿಸಬೇಕು: {fix}", te: "కానీ ముందుగా ఇది సరిచేయాలి: {fix}", ta: "ஆனால் முதலில் இதை சரிசெய்ய வேண்டும்: {fix}", mr: "पण आधी हे दुरुस्त करावे लागेल: {fix}", en: "But fix this first: {fix}" } as Q,
+  fixFirst: { hi: "लेकिन पहले यह ठीक करवाना होगा: {fix}।", kn: "ಆದರೆ ಮೊದಲು ಇದನ್ನು ಸರಿಪಡಿಸಬೇಕು: {fix}.", te: "కానీ ముందుగా ఇది సరిచేయాలి: {fix}.", ta: "ஆனால் முதலில் இதை சரிசெய்ய வேண்டும்: {fix}.", mr: "पण आधी हे दुरुस्त करावे लागेल: {fix}.", en: "But fix this first: {fix}." } as Q,
   nothingYet: { hi: "समझ नहीं आया। फिर से बताइए, जैसे: मैं कोलार से हूँ, दो एकड़ खेती करता हूँ, उम्र 45 है।", kn: "ಅರ್ಥವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಹೇಳಿ, ಉದಾಹರಣೆಗೆ: ನಾನು ಕೋಲಾರದವನು, ಎರಡು ಎಕರೆ ಬೇಸಾಯ, ವಯಸ್ಸು 45.", te: "అర్థం కాలేదు. మళ్ళీ చెప్పండి, ఉదాహరణకు: నేను కోలార్ నుండి, రెండు ఎకరాల వ్యవసాయం, వయస్సు 45.", ta: "புரியவில்லை. மீண்டும் சொல்லுங்கள், உதாரணமாக: நான் கோலாரிலிருந்து, இரண்டு ஏக்கர் விவசாயம், வயது 45.", mr: "समजले नाही. पुन्हा सांगा, जसे: मी कोलारचा, दोन एकर शेती, वय 45.", en: "I did not catch that. Try again, for example: I am from Kolar, I farm two acres, I am 45." } as Q,
   fixLabels: {
     aadhaarNameMatchesRationCard: { hi: "आधार और राशन कार्ड में नाम मिलान", kn: "ಆಧಾರ್-ರೇಷನ್ ಕಾರ್ಡ್ ಹೆಸರು ಹೊಂದಾಣಿಕೆ", te: "ఆధార్-రేషన్ కార్డు పేరు సరిపోలిక", ta: "ஆதார்-ரேஷன் அட்டை பெயர் பொருத்தம்", mr: "आधार-रेशन कार्ड नाव जुळणी", en: "Aadhaar and ration card name match" } as Q,
@@ -88,7 +89,8 @@ export function composeReply(opts: {
   }
 
   if (newlyEligible.length) {
-    const names = newlyEligible.map((id) => SCHEME_NAMES[id]?.[lang] ?? SCHEME_NAMES[id]?.en ?? id);
+    const names = newlyEligible.slice(0, 3).map((id) => SCHEME_NAMES[id]?.[lang] ?? SCHEME_NAMES[id]?.en ?? id);
+    if (newlyEligible.length > 3) names.push(TEMPLATES.more[lang].replace("{n}", String(newlyEligible.length - 3)));
     parts.push(TEMPLATES.youCanGet[lang].replace("{list}", names.join(TEMPLATES.and[lang])));
   } else if (extractedAnything) {
     parts.push(ACK[lang]);

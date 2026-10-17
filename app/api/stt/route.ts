@@ -3,8 +3,6 @@ import { hasSlng } from "@/lib/env";
 import { SlngError, transcribe } from "@/lib/slng";
 import { DEFAULTS, type Lang, type SttModelId } from "@/lib/models";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
 
 const MODELS = new Set<string>(["sarvam/saaras:v3", "slng/deepgram/nova:3-hi", "soniox/speech-ai:rt-v5"]);
 const LANGS = new Set<string>(["hi", "kn", "te", "ta", "mr", "en"]);

@@ -1,7 +1,50 @@
 import type { CitizenProfile, FieldEvidence, ProfileKey } from "../profile/schema";
 import type { Lang } from "../models";
 
+// JS \b only understands ASCII word characters, so Devanagari / Kannada /
+// Telugu tokens never hit a boundary. rx() rewrites \b to Unicode-aware
+// lookarounds and turns on the u flag.
+function rx(source: string, flags = ""): RegExp {
+  const src = source.replace(/\\b/g, "(?:(?<![\\p{L}\\p{N}])|(?![\\p{L}\\p{N}]))");
+  return new RegExp(src, flags.includes("u") ? flags : flags + "u");
+}
+
 type Hit = { field: ProfileKey; value: unknown; quote: string; confidence: number };
+
+const VILLAGE_STOP = new Set(["ek", "kisi", "mere", "mera", "apne", "hamare", "chhote", "chote", "bade", "a", "my", "our", "the", "small", "se", "ke", "paas", "ki", "ka", "wale", "ek", "एक", "मेरे", "अपने", "छोटे", "ಒಂದು", "ನಮ್ಮ", "ನನ್ನ", "ಚಿಕ್ಕ", "ಹಳ್ಳಿ"]);
+
+const DISTRICTS: string[][] = [
+  ["Kolar", "ಕೋಲಾರ", "कोलार"],
+  ["Tumakuru", "Tumkur", "ತುಮಕೂರ", "तुमकुर"],
+  ["Mandya", "ಮಂಡ್ಯ", "मांड्या"],
+  ["Mysuru", "Mysore", "ಮೈಸೂರ", "मैसूर"],
+  ["Hassan", "ಹಾಸನ", "हासन"],
+  ["Chikkaballapur", "ಚಿಕ್ಕಬಳ್ಳಾಪುರ"],
+  ["Ramanagara", "ರಾಮನಗರ"],
+  ["Belagavi", "Belgaum", "ಬೆಳಗಾವಿ", "बेलगाम"],
+  ["Dharwad", "Hubli", "ಧಾರವಾಡ", "ಹುಬ್ಬಳ್ಳಿ"],
+  ["Ballari", "Bellary", "ಬಳ್ಳಾರಿ"],
+  ["Raichur", "ರಾಯಚೂರ"],
+  ["Kalaburagi", "Gulbarga", "ಕಲಬುರಗಿ", "गुलबर्गा"],
+  ["Bidar", "ಬೀದರ"],
+  ["Vijayapura", "Bijapur", "ವಿಜಯಪುರ", "बीजापुर"],
+  ["Bagalkot", "ಬಾಗಲಕೋಟೆ"],
+  ["Davanagere", "ದಾವಣಗೆರೆ"],
+  ["Shivamogga", "Shimoga", "ಶಿವಮೊಗ್ಗ"],
+  ["Chitradurga", "ಚಿತ್ರದುರ್ಗ"],
+  ["Udupi", "ಉಡುಪಿ"],
+  ["Dakshina Kannada", "Mangaluru", "Mangalore", "ಮಂಗಳೂರ"],
+  ["Uttara Kannada", "Karwar", "ಕಾರವಾರ"],
+  ["Chikkamagaluru", "Chikmagalur", "ಚಿಕ್ಕಮಗಳೂರ"],
+  ["Kodagu", "Coorg", "ಕೊಡಗ"],
+  ["Haveri", "ಹಾವೇರಿ"],
+  ["Gadag", "ಗದಗ"],
+  ["Koppal", "ಕೊಪ್ಪಳ"],
+  ["Yadgir", "ಯಾದಗಿರಿ"],
+  ["Chamarajanagar", "ಚಾಮರಾಜನಗರ"],
+  ["Bengaluru Rural", "Bangalore Rural"],
+  ["Bengaluru Urban", "Bengaluru", "Bangalore", "ಬೆಂಗಳೂರ", "बैंगलोर", "बेंगलुरु"],
+];
 
 const DEVANAGARI_DIGITS: Record<string, string> = { "०": "0", "१": "1", "२": "2", "३": "3", "४": "4", "५": "5", "६": "6", "७": "7", "८": "8", "९": "9" };
 const KANNADA_DIGITS: Record<string, string> = { "೦": "0", "೧": "1", "೨": "2", "೩": "3", "೪": "4", "೫": "5", "೬": "6", "೭": "7", "೮": "8", "೯": "9" };
@@ -28,7 +71,7 @@ export function detectLanguage(text: string): Lang {
   if (/[\u0C00-\u0C7F]/.test(text)) return "te";
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
   if (/[\u0900-\u097F]/.test(text)) return "hi";
-  if (/\b(hoon|hai|hain|mera|meri|gaon|zameen|saal|kaam|karta|karti|nahi|haan)\b/i.test(text)) return "hi";
+  if (rx(`\\b(hoon|hai|hain|mera|meri|gaon|zameen|saal|kaam|karta|karti|nahi|haan)\\b`, "i").test(text)) return "hi";
   return "en";
 }
 
@@ -57,27 +100,27 @@ export function ruleExtract(textRaw: string): { delta: Partial<CitizenProfile>; 
       add("isLandOwner", true, landM[0], 0.6);
     }
   }
-  if (/\b(zameen|zamin|khet|kheti|land|farm|ಹೊಲ|ಜಮೀನು|खेत|ज़मीन|जमीन)\b/i.test(text) && !/\b(nahi|nahin|no|koi nahi|ಇಲ್ಲ|नहीं)\b/i.test(lower.slice(0, 80))) {
-    if (!hits.some((h) => h.field === "isLandOwner")) add("isLandOwner", true, grab(/\b(zameen|khet|kheti|land|farm|ಹೊಲ|ಜಮೀನು|खेत|ज़मीन|जमीन)\b/i), 0.5);
+  if (rx(`\\b(zameen|zamin|khet|kheti|land|farm|ಹೊಲ|ಜಮೀನು|खेत|ज़मीन|जमीन)\\b`, "i").test(text) && !rx(`\\b(nahi|nahin|no|koi nahi|ಇಲ್ಲ|नहीं)\\b`, "i").test(lower.slice(0, 80))) {
+    if (!hits.some((h) => h.field === "isLandOwner")) add("isLandOwner", true, grab(rx(`\\b(zameen|khet|kheti|land|farm|ಹೊಲ|ಜಮೀನು|खेत|ज़मीन|जमीन)\\b`, "i")), 0.5);
   }
-  if (/\b(kiraye|kiraya|lease|tenant|bataai|ಗುತ್ತಿಗೆ|किराये)\b/i.test(lower)) add("isLandOwner", false, grab(/\b(kiraye|kiraya|lease|tenant|bataai)\b/i), 0.7);
+  if (rx(`\\b(kiraye|kiraya|lease|tenant|bataai|ಗುತ್ತಿಗೆ|किराये)\\b`, "i").test(lower)) add("isLandOwner", false, grab(rx(`\\b(kiraye|kiraya|lease|tenant|bataai)\\b`, "i")), 0.7);
 
   // occupation
   const occ: [RegExp, CitizenProfile["occupationClass"], string][] = [
-    [/\b(kisan|kheti|farmer|farming|ugata|ugati|ugate|fasal|crop|ರೈತ|ಬೇಸಾಯ|किसान|खेती|tamatar|dhaan|ragi|tomato)\b/i, "farmer", "farming"],
-    [/\b(mazdoor|majdoor|labour|labor|coolie|daily wage|ಕೂಲಿ|मजदूर|dihadi)\b/i, "farm_labourer", "daily wage labour"],
-    [/\b(darzi|tailor|badhai|carpenter|lohar|blacksmith|kumhar|potter|mochi|cobbler|sunar|goldsmith|nai|barber|dhobi|washerman|mistri|mason|raj mistri|ಟೈಲರ್|ದರ್ಜಿ|ಕುಂಬಾರ|ಬಡಗಿ|दर्जी|बढ़ई|लोहार|कुम्हार|मोची|सुनार|नाई|धोबी|मिस्त्री|weaver|bunkar|basket)\b/i, "artisan", "artisan trade"],
-    [/\b(thela|rehdi|street vendor|hawker|sabzi bech|vendor|ಗಾಡಿ|ठेला|रेहड़ी|feri|pheri)\b/i, "street_vendor", "street vending"],
-    [/\b(ghar ka kaam|maid|domestic|housekeeping|bartan|jhadu|ಮನೆಗೆಲಸ|घर का काम|कामवाली)\b/i, "domestic_worker", "domestic work"],
-    [/\b(construction|building site|site pe|beldar|ಕಟ್ಟಡ|निर्माण)\b/i, "construction", "construction work"],
-    [/\b(driver|auto chalata|auto chalati|rickshaw|cab|truck|ಡ್ರೈವರ್|ड्राइवर|ऑटो)\b/i, "driver", "driving"],
-    [/\b(delivery|swiggy|zomato|zepto|blinkit|amazon|gig)\b/i, "gig_delivery", "delivery work"],
-    [/\b(dukaan|dukan|shop|kirana|ಅಂಗಡಿ|दुकान)\b/i, "shopkeeper", "shopkeeper"],
-    [/\b(sarkari naukri|government job|govt job|teacher in government|ಸರ್ಕಾರಿ ಕೆಲಸ|सरकारी नौकरी)\b/i, "govt_employee", "government job"],
-    [/\b(company|office|private job|software|it job|salary|ಕಂಪನಿ|कंपनी|नौकरी)\b/i, "salaried_private", "private salaried job"],
-    [/\b(student|padhai|padhta|padhti|college|ವಿದ್ಯಾರ್ಥಿ|छात्र|पढ़ाई)\b/i, "student", "student"],
-    [/\b(housewife|homemaker|grihini|ಗೃಹಿಣಿ|गृहिणी)\b/i, "homemaker", "homemaker"],
-    [/\b(retired|pension|ನಿವೃತ್ತ|सेवानिवृत्त)\b/i, "retired", "retired"],
+    [rx(`\\b(kisan|kheti|farmer|farming|ugata|ugati|ugate|fasal|crop|ರೈತ|ಬೇಸಾಯ|किसान|खेती|tamatar|dhaan|ragi|tomato)\\b`, "i"), "farmer", "farming"],
+    [rx(`\\b(mazdoor|majdoor|labour|labor|coolie|daily wage|ಕೂಲಿ|मजदूर|dihadi)\\b`, "i"), "farm_labourer", "daily wage labour"],
+    [rx(`\\b(darzi|tailor|badhai|carpenter|lohar|blacksmith|kumhar|potter|mochi|cobbler|sunar|goldsmith|nai|barber|dhobi|washerman|mistri|mason|raj mistri|ಟೈಲರ್|ದರ್ಜಿ|ಕುಂಬಾರ|ಬಡಗಿ|दर्जी|बढ़ई|लोहार|कुम्हार|मोची|सुनार|नाई|धोबी|मिस्त्री|weaver|bunkar|basket)\\b`, "i"), "artisan", "artisan trade"],
+    [rx(`\\b(thela|rehdi|street vendor|hawker|sabzi bech|vendor|ಗಾಡಿ|ठेला|रेहड़ी|feri|pheri)\\b`, "i"), "street_vendor", "street vending"],
+    [rx(`\\b(ghar ka kaam|maid|domestic|housekeeping|bartan|jhadu|ಮನೆಗೆಲಸ|घर का काम|कामवाली)\\b`, "i"), "domestic_worker", "domestic work"],
+    [rx(`\\b(construction|building site|site pe|beldar|ಕಟ್ಟಡ|निर्माण)\\b`, "i"), "construction", "construction work"],
+    [rx(`\\b(driver|auto chalata|auto chalati|rickshaw|cab|truck|ಡ್ರೈವರ್|ड्राइवर|ऑटो)\\b`, "i"), "driver", "driving"],
+    [rx(`\\b(delivery|swiggy|zomato|zepto|blinkit|amazon|gig)\\b`, "i"), "gig_delivery", "delivery work"],
+    [rx(`\\b(dukaan|dukan|shop|kirana|ಅಂಗಡಿ|दुकान)\\b`, "i"), "shopkeeper", "shopkeeper"],
+    [rx(`\\b(sarkari naukri|government job|govt job|teacher in government|ಸರ್ಕಾರಿ ಕೆಲಸ|सरकारी नौकरी)\\b`, "i"), "govt_employee", "government job"],
+    [rx(`\\b(company|office|private job|software|it job|salary|ಕಂಪನಿ|कंपनी|नौकरी)\\b`, "i"), "salaried_private", "private salaried job"],
+    [rx(`\\b(student|padhai|padhta|padhti|college|ವಿದ್ಯಾರ್ಥಿ|छात्र|पढ़ाई)\\b`, "i"), "student", "student"],
+    [rx(`\\b(housewife|homemaker|grihini|ಗೃಹಿಣಿ|गृहिणी)\\b`, "i"), "homemaker", "homemaker"],
+    [rx(`\\b(retired|pension|ನಿವೃತ್ತ|सेवानिवृत्त)\\b`, "i"), "retired", "retired"],
   ];
   for (const [re, cls, plain] of occ) {
     const m = text.match(re);
@@ -86,45 +129,52 @@ export function ruleExtract(textRaw: string): { delta: Partial<CitizenProfile>; 
 
   // location
   const villageM = text.match(/([A-Za-z\u0900-\u097F\u0C80-\u0CFF]+)\s*(gaon|gaav|village|ಹಳ್ಳಿ|ಊರು|ಗ್ರಾಮ|गाँव|गांव|ग्राम)/i);
-  if (villageM) { add("village", villageM[1], villageM[0], 0.6); add("areaType", "Rural", villageM[0], 0.8); }
-  else if (/\b(gaon|gaav|village|ಹಳ್ಳಿ|ಊರು|ಗ್ರಾಮ|गाँव|गांव|ग्राम|dehat|ಹಳ್ಳಿಯ)\b/i.test(text)) add("areaType", "Rural", grab(/\b(gaon|gaav|village|ಹಳ್ಳಿ|ಊರು|ಗ್ರಾಮ|गाँव|गांव|ग्राम)\b/i), 0.8);
-  if (/\b(shahar|sheher|city|town|bangalore|bengaluru|mysore|mysuru|hubli|mangalore|ಬೆಂಗಳೂರು|ನಗರ|शहर)\b/i.test(text) && !hits.some((h) => h.field === "areaType")) add("areaType", "Urban", grab(/\b(shahar|sheher|city|town|bangalore|bengaluru|ನಗರ|शहर)\b/i), 0.7);
-  const districts = ["Kolar", "Tumkur", "Tumakuru", "Mandya", "Mysuru", "Mysore", "Hassan", "Chikkaballapur", "Ramanagara", "Belagavi", "Belgaum", "Dharwad", "Hubli", "Ballari", "Bellary", "Raichur", "Kalaburagi", "Gulbarga", "Bidar", "Vijayapura", "Bijapur", "Bagalkot", "Davanagere", "Shivamogga", "Shimoga", "Chitradurga", "Udupi", "Dakshina Kannada", "Mangaluru", "Uttara Kannada", "Chikkamagaluru", "Kodagu", "Haveri", "Gadag", "Koppal", "Yadgir", "Chamarajanagar", "Bengaluru Rural", "Bengaluru Urban", "Bangalore"];
-  for (const d of districts) {
-    const re = new RegExp(`\\b${d}\\b`, "i");
-    if (re.test(text)) { add("district", d, grab(re), 0.7); add("state", "Karnataka", grab(re), 0.6); break; }
+  if (villageM) {
+    if (!VILLAGE_STOP.has(villageM[1].toLowerCase())) add("village", villageM[1], villageM[0], 0.6);
+    add("areaType", "Rural", villageM[0], 0.8);
   }
-  if (/\b(karnataka|ಕರ್ನಾಟಕ|कर्नाटक)\b/i.test(text)) add("state", "Karnataka", grab(/\b(karnataka|ಕರ್ನಾಟಕ|कर्नाटक)\b/i), 0.9);
+  else if (rx(`\\b(gaon|gaav|village|ಹಳ್ಳಿ|ಊರು|ಗ್ರಾಮ|गाँव|गांव|ग्राम|dehat|ಹಳ್ಳಿಯ)\\b`, "i").test(text)) add("areaType", "Rural", grab(rx(`\\b(gaon|gaav|village|ಹಳ್ಳಿ|ಊರು|ಗ್ರಾಮ|गाँव|गांव|ग्राम)\\b`, "i")), 0.8);
+  if (rx(`\\b(shahar|sheher|city|town|bangalore|bengaluru|mysore|mysuru|hubli|mangalore|ಬೆಂಗಳೂರು|ನಗರ|शहर)\\b`, "i").test(text) && !hits.some((h) => h.field === "areaType")) add("areaType", "Urban", grab(rx(`\\b(shahar|sheher|city|town|bangalore|bengaluru|ನಗರ|शहर)\\b`, "i")), 0.7);
+  for (const [canonical, ...aliases] of DISTRICTS) {
+    // Indic names are inflected (ತುಮಕೂರಿನವನು = "person from Tumakuru"), so match them as a prefix.
+    const re = rx(`\\b(${[canonical, ...aliases].map((a) => (/^[A-Za-z ]+$/.test(a) ? `${a}\\b` : a)).join("|")})`, "i");
+    if (re.test(text)) { add("district", canonical, grab(re), 0.7); add("state", "Karnataka", grab(re), 0.6); break; }
+  }
+  if (rx(`\\b(karnataka|ಕರ್ನಾಟಕ|कर्नाटक)\\b`, "i").test(text)) add("state", "Karnataka", grab(rx(`\\b(karnataka|ಕರ್ನಾಟಕ|कर्नाटक)\\b`, "i")), 0.9);
 
   // household
-  const seniorM = text.match(/(\d{2})\s*(saal|years?|वर्ष|साल|ವರ್ಷ)[^.]{0,30}(pitaji|papa|father|maa|mother|amma|appa|ajji|dadi|dada|nani|nana|sasur|saas|ತಂದೆ|ತಾಯಿ|पिता|माँ|मां|माता)/i);
-  if (seniorM && parseInt(seniorM[1], 10) >= 70) add("householdMembers70Plus", 1, seniorM[0], 0.7);
-  if (/\b(vidhwa|widow|pati nahi rahe|pati ka dehant|husband died|husband passed|ವಿಧವೆ|ಗಂಡ ತೀರಿ|विधवा|पति नहीं रहे)\b/i.test(text)) { add("maritalStatus", "widowed", grab(/\b(vidhwa|widow|pati nahi rahe|husband died|ವಿಧವೆ|विधवा)\b/i), 0.8); add("gender", "female", "", 0.6); }
-  if (/\b(shaadi\s*shuda|married|pati|patni|wife|husband|ಹೆಂಡತಿ|ಗಂಡ|पत्नी|पति)\b/i.test(text) && !hits.some((h) => h.field === "maritalStatus")) add("maritalStatus", "married", grab(/\b(shaadi\s*shuda|married|pati|patni|wife|husband)\b/i), 0.6);
-  if (/\b(main aurat|mahila|woman|female|ಮಹಿಳೆ|महिला|औरत)\b/i.test(text)) add("gender", "female", grab(/\b(mahila|woman|female|ಮಹಿಳೆ|महिला|औरत)\b/i), 0.6);
+  const ELDER = "pitaji|papa|father|maa|mother|amma|appa|ajji|ajja|dadi|dada|nani|nana|sasur|saas|ತಂದೆ|ತಾಯಿ|ಅಜ್ಜಿ|ಅಜ್ಜ|पिता|माँ|मां|माता|दादी|दादा|नानी|नाना";
+  const seniorM = text.match(rx(`(\\d{2})\\s*(saal|years?|वर्ष|साल|ವರ್ಷ|ವಯಸ್ಸು)[^.]{0,30}\\b(${ELDER})\\b`, "i")) ?? text.match(rx(`\\b(${ELDER})\\b[^.]{0,30}?(\\d{2})\\s*(saal|years?|yrs|वर्ष|साल|ವರ್ಷ|ke|ki|ಆಗಿದೆ|ವಯಸ್ಸು)`, "i"));
+  if (seniorM) {
+    const n = parseInt(seniorM.find((g, i) => i > 0 && /^\d{2}$/.test(g ?? "")) ?? "0", 10);
+    if (n >= 70) add("householdMembers70Plus", 1, seniorM[0], 0.7);
+  }
+  if (rx(`\\b(vidhwa|widow|pati nahi rahe|pati ka dehant|husband died|husband passed|ವಿಧವೆ|ಗಂಡ ತೀರಿ|विधवा|पति नहीं रहे)\\b`, "i").test(text)) { add("maritalStatus", "widowed", grab(rx(`\\b(vidhwa|widow|pati nahi rahe|husband died|ವಿಧವೆ|विधवा)\\b`, "i")), 0.8); add("gender", "female", "", 0.6); }
+  if (rx(`\\b(shaadi\s*shuda|married|pati|patni|wife|husband|ಹೆಂಡತಿ|ಗಂಡ|पत्नी|पति)\\b`, "i").test(text) && !hits.some((h) => h.field === "maritalStatus")) add("maritalStatus", "married", grab(rx(`\\b(shaadi\s*shuda|married|pati|patni|wife|husband)\\b`, "i")), 0.6);
+  if (rx(`\\b(main aurat|mahila|woman|female|ಮಹಿಳೆ|महिला|औरत)\\b`, "i").test(text)) add("gender", "female", grab(rx(`\\b(mahila|woman|female|ಮಹಿಳೆ|महिला|औरत)\\b`, "i")), 0.6);
 
   // ration card
-  if (/\b(aay|antyodaya|antodaya|pink card|yellow card|ಅಂತ್ಯೋದಯ|अंत्योदय)\b/i.test(text)) add("rationCardType", "AAY", grab(/\b(aay|antyodaya|antodaya|pink card|yellow card)\b/i), 0.8);
-  else if (/\b(bpl|garibi rekha|below poverty|ಬಿಪಿಎಲ್|बीपीएल)\b/i.test(text)) add("rationCardType", "BPL", grab(/\b(bpl|garibi rekha|below poverty|ಬಿಪಿಎಲ್|बीपीएल)\b/i), 0.8);
-  else if (/\b(apl|ಎಪಿಎಲ್|एपीएल)\b/i.test(text)) add("rationCardType", "APL", grab(/\b(apl)\b/i), 0.8);
+  if (rx(`\\b(aay|antyodaya|antodaya|pink card|yellow card|ಅಂತ್ಯೋದಯ|अंत्योदय)\\b`, "i").test(text)) add("rationCardType", "AAY", grab(rx(`\\b(aay|antyodaya|antodaya|pink card|yellow card)\\b`, "i")), 0.8);
+  else if (rx(`\\b(bpl|garibi rekha|below poverty|ಬಿಪಿಎಲ್|बीपीएल)\\b`, "i").test(text)) add("rationCardType", "BPL", grab(rx(`\\b(bpl|garibi rekha|below poverty|ಬಿಪಿಎಲ್|बीपीएल)\\b`, "i")), 0.8);
+  else if (rx(`\\b(apl|ಎಪಿಎಲ್|एपीएल)\\b`, "i").test(text)) add("rationCardType", "APL", grab(rx(`\\b(apl)\\b`, "i")), 0.8);
   else if (/ration card (nahi|nahin|नहीं)|no ration card|ರೇಷನ್ ಕಾರ್ಡ್ ಇಲ್ಲ/i.test(text)) add("rationCardType", "none", grab(/ration card (nahi|nahin)|no ration card/i), 0.8);
 
   // housing
-  if (/\b(kachcha|kaccha|kutcha|mitti ka ghar|jhopdi|hut|ಗುಡಿಸಲು|कच्चा|झोपड़ी)\b/i.test(text)) add("housingType", "kutcha", grab(/\b(kachcha|kaccha|kutcha|jhopdi|hut|ಗುಡಿಸಲು|कच्चा)\b/i), 0.8);
-  else if (/\b(pakka|pucca|pakka ghar|cement house|ಪಕ್ಕಾ|पक्का)\b/i.test(text)) add("housingType", "pucca", grab(/\b(pakka|pucca|ಪಕ್ಕಾ|पक्का)\b/i), 0.8);
-  else if (/\b(ghar nahi|homeless|no house|ಮನೆ ಇಲ್ಲ|घर नहीं)\b/i.test(text)) add("housingType", "none", grab(/\b(ghar nahi|homeless|no house)\b/i), 0.8);
+  if (rx(`\\b(kachcha|kaccha|kutcha|mitti ka ghar|jhopdi|hut|ಗುಡಿಸಲು|कच्चा|झोपड़ी)\\b`, "i").test(text)) add("housingType", "kutcha", grab(rx(`\\b(kachcha|kaccha|kutcha|jhopdi|hut|ಗುಡಿಸಲು|कच्चा)\\b`, "i")), 0.8);
+  else if (rx(`\\b(pakka|pucca|pakka ghar|cement house|ಪಕ್ಕಾ|पक्का)\\b`, "i").test(text)) add("housingType", "pucca", grab(rx(`\\b(pakka|pucca|ಪಕ್ಕಾ|पक्का)\\b`, "i")), 0.8);
+  else if (rx(`\\b(ghar nahi|homeless|no house|ಮನೆ ಇಲ್ಲ|घर नहीं)\\b`, "i").test(text)) add("housingType", "none", grab(rx(`\\b(ghar nahi|homeless|no house)\\b`, "i")), 0.8);
 
   // crop loss
-  if (/\b(fasal (kharab|barbad|nasht)|crop (loss|damage|fail)|baarish se|barish se|sookha|drought|ಬೆಳೆ (ಹಾನಿ|ನಷ್ಟ)|फसल (खराब|बर्बाद)|hailstorm|ole|flood|baadh)\b/i.test(text)) {
-    const q = grab(/\b(fasal (kharab|barbad)|crop (loss|damage)|baarish|barish|sookha|drought|ಬೆಳೆ ಹಾನಿ|फसल खराब|flood|baadh|ole)\b/i);
+  if (rx(`\\b(fasal (kharab|barbad|nasht)|crop (loss|damage|fail)|baarish se|barish se|sookha|drought|ಬೆಳೆ (ಹಾನಿ|ನಷ್ಟ)|फसल (खराब|बर्बाद)|hailstorm|ole|flood|baadh)\\b`, "i").test(text)) {
+    const q = grab(rx(`\\b(fasal (kharab|barbad)|crop (loss|damage)|baarish|barish|sookha|drought|ಬೆಳೆ ಹಾನಿ|फसल खराब|flood|baadh|ole)\\b`, "i"));
     add("recentCropLoss", true, q, 0.8);
     const cause = /baarish|barish|rain|flood|baadh|ಮಳೆ|बारिश/i.test(text) ? "unseasonal rain / flood" : /sookha|drought|ಬರ|सूखा/i.test(text) ? "drought" : /ole|hail/i.test(text) ? "hailstorm" : /keeda|pest|rog|ಕೀಟ|कीड़ा/i.test(text) ? "pest / disease" : null;
     if (cause) add("cropLossCause", cause, q, 0.7);
   }
 
   // tax / pf / govt
-  if (/\b(income tax|tax bharta|tax deta|ಆದಾಯ ತೆರಿಗೆ|आयकर)\b/i.test(text)) add("paysIncomeTax", !/\b(nahi|nahin|no|ಇಲ್ಲ|नहीं)\b/i.test(text), grab(/\b(income tax|tax bharta|ಆದಾಯ ತೆರಿಗೆ|आयकर)\b/i), 0.7);
-  if (/\b(pf|epfo|esic|provident)\b/i.test(text)) add("hasEpfoOrEsic", !/\b(nahi|nahin|no|ಇಲ್ಲ|नहीं)\b/i.test(text), grab(/\b(pf|epfo|esic|provident)\b/i), 0.7);
+  if (rx(`\\b(income tax|tax bharta|tax deta|ಆದಾಯ ತೆರಿಗೆ|आयकर)\\b`, "i").test(text)) add("paysIncomeTax", !rx(`\\b(nahi|nahin|no|ಇಲ್ಲ|नहीं)\\b`, "i").test(text), grab(rx(`\\b(income tax|tax bharta|ಆದಾಯ ತೆರಿಗೆ|आयकर)\\b`, "i")), 0.7);
+  if (rx(`\\b(pf|epfo|esic|provident)\\b`, "i").test(text)) add("hasEpfoOrEsic", !rx(`\\b(nahi|nahin|no|ಇಲ್ಲ|नहीं)\\b`, "i").test(text), grab(rx(`\\b(pf|epfo|esic|provident)\\b`, "i")), 0.7);
 
   // income
   const incM = text.match(/(\d+(\.\d+)?)\s*(lakh|lac|लाख|ಲಕ್ಷ)/i);
@@ -152,7 +202,7 @@ export function ruleExtract(textRaw: string): { delta: Partial<CitizenProfile>; 
 
 export function parseYesNo(text: string): boolean | null {
   const t = text.toLowerCase();
-  if (/\b(haan|ha|han|ji haan|yes|yeah|sahi|same|match|hai|ಹೌದು|हाँ|हां|जी|avunu|aamam)\b/.test(t) && !/\b(nahi|nahin|no|not|ಇಲ್ಲ|नहीं|alag|different|mismatch)\b/.test(t)) return true;
-  if (/\b(nahi|nahin|no|not|ಇಲ್ಲ|नहीं|alag|different|mismatch|galat|pata nahi)\b/.test(t)) return false;
+  if (rx(`\\b(haan|ha|han|ji haan|yes|yeah|sahi|same|match|hai|ಹೌದು|हाँ|हां|जी|avunu|aamam)\\b`, "").test(t) && !rx(`\\b(nahi|nahin|no|not|ಇಲ್ಲ|नहीं|alag|different|mismatch)\\b`, "").test(t)) return true;
+  if (rx(`\\b(nahi|nahin|no|not|ಇಲ್ಲ|नहीं|alag|different|mismatch|galat|pata nahi)\\b`, "").test(t)) return false;
   return null;
 }

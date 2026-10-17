@@ -3,7 +3,6 @@ import { z } from "zod";
 import { CitizenProfileSchema } from "@/lib/profile/schema";
 import { runTurn } from "@/lib/turn";
 
-export const runtime = "nodejs";
 
 const Body = z.object({
   text: z.string().min(1).max(2000),

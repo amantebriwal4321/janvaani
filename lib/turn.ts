@@ -39,7 +39,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   // 1. deterministic pass (always runs, zero cost, instant)
   const rules = ruleExtract(text);
   const delta: Partial<CitizenProfile> = { ...rules.delta };
-  const evidence: FieldEvidence[] = [...rules.evidence];
+  let evidence: FieldEvidence[] = [...rules.evidence];
 
   // yes/no answer to a pending boolean question
   if (input.pendingField && isBooleanField(input.pendingField) && delta[input.pendingField] === undefined) {
@@ -83,6 +83,14 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   }
 
   const lang: Lang = input.lang !== "auto" ? input.lang : detected ?? detectLanguage(text);
+
+  // Only report what actually changed; models like to echo known fields back.
+  for (const k of Object.keys(delta) as ProfileKey[]) {
+    if (profile[k] != null && JSON.stringify(profile[k]) === JSON.stringify(delta[k])) {
+      delete delta[k];
+      evidence = evidence.filter((e) => e.field !== k);
+    }
+  }
 
   // 3. merge + derive + match
   const merged = mergeProfile(profile, delta);
