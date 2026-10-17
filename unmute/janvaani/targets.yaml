@@ -1,0 +1,8 @@
+# Hosted on SLNG via LiveKit Cloud Mumbai (the region the existing agent was created in). `unmute deploy` pushes the compiled agent body;
+# SLNG runs it and the web app opens a WebRTC session to it (POST
+# /v1/agents/{id}/web-sessions). Change deployment_region only before the first
+# deploy: an agent's region is fixed once created.
+targets:
+  slng:
+    provider: slng
+    deployment_region: ap-south-livekit

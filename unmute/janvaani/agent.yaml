@@ -1,0 +1,69 @@
+# JanVaani as an Unmute package. `unmute validate` checks it, `unmute deploy`
+# pushes it to SLNG as the hosted agent that the app's "Live Call" button
+# connects to over WebRTC. Nothing in here names a framework: switch
+# targets.yaml to livekit or pipecat and the same agent compiles to code.
+version: 1
+
+name: janvaani
+entry_agent: janvaani
+
+agents:
+  janvaani:
+    instructions: prompt.md
+    think: brain
+    speak: hindi_voice
+    tools:
+      - end_call
+
+secrets:
+  - SLNG_API_KEY
+
+models:
+  think:
+    brain:
+      # On the slng target the driver joins provider/model into SLNG's hosted
+      # model name (openai/gpt-4.1-mini:latest), billed to the SLNG project.
+      description: SLNG-hosted GPT-4.1 mini; fast, cheap, good at Hinglish and code-mixed Indic text
+      provider: openai
+      model: "gpt-4.1-mini:latest"
+  speak:
+    hindi_voice:
+      description: Sarvam Bulbul v3, Indian male voice, 11 Indic languages
+      provider: slng
+      model: "sarvam/bulbul:v3"
+      voice: "shubh"
+      params:
+        world_part: in
+    english_voice:
+      description: Deepgram Aura 2 for English-only kiosks
+      provider: slng
+      model: "deepgram/aura:2"
+      voice: "aura-2-thalia-en"
+      params:
+        world_part: in
+  listen:
+    ears:
+      description: Sarvam Saaras v3, auto-detects 23 Indian languages, handles code-mixing
+      provider: slng
+      model: "sarvam/saaras:v3"
+      params:
+        world_part: in
+  # No turn block: the slng target owns turn taking. Add a livekit/pipecat
+  # turn detector here only when compiling to those code targets.
+
+tools:
+  - end_call
+
+conversation:
+  greeting:
+    speaks_first: agent
+    text: "नमस्ते, मैं जनवाणी हूँ। अपने बारे में बताइए: आप कहाँ रहते हैं, क्या काम करते हैं, और उम्र कितनी है। मैं बताऊँगी कि कौन सी सरकारी योजना आपके लिए है।"
+
+channels:
+  web:
+    kind: realtime_audio
+
+capacity:
+  peak_sessions: 5
+  max_sessions: 10
+  avg_session_duration: 4m

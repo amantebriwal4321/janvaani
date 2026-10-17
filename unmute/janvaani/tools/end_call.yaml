@@ -1,0 +1,3 @@
+description: "End the call when the citizen says they are done, says goodbye, or after the CSC checklist has been read out."
+builtin:
+  id: end_call

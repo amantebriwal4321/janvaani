@@ -1,0 +1,4 @@
+.env
+build/*
+!build/slng/
+build/slng/compile-report.json
