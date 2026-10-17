@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // With gzip on, `next start` streams every response as
+  // Transfer-Encoding: chunked with no Content-Length. Some tunnels/proxies
+  // (e.g. the cloud-agent port forward) cut those off early, which the browser
+  // reports as ERR_INCOMPLETE_CHUNKED_ENCODING: the HTML arrives but the CSS/JS
+  // never does, so the page renders unstyled and never hydrates. Uncompressed
+  // static assets go out with an explicit Content-Length instead.
+  compress: false,
   // Dev-only. Next blocks /_next/* (incl. the HMR WebSocket) when the page is
   // opened from a host it does not know about. The preview may reach us via
   // 127.0.0.1, the VM/LAN IP, a Docker bridge IP or a Cursor preview proxy.
