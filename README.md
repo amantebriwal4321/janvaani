@@ -2,6 +2,8 @@
 
 **Speak once, in your own words. The government form fills itself, and you leave with a CSC Ready Slip.**
 
+**[Live demo](https://quick-marble-9ye8oc5.vercel.app/)**
+
 JanVaani is a voice assistant for Indian citizens who qualify for welfare schemes but cannot get through the forms. A farmer says *"Main Kolar se hoon, do acre tamatar ugata hoon, umar pentalees, pitaji bahattar saal ke hain"* and, while they are still talking, the screen fills in `District: Kolar`, `Land: 2 acres (0.81 ha)`, `Occupation: farmer`, `Family member 70+: yes`, lists PM-KISAN, Ayushman Bharat, Vay Vandana and crop insurance with the reason for each, asks the three questions that cause most CSC rejections, and prints a one-page slip the CSC operator can type from.
 
 Built for the **SLNG** track of Ignite With Bangalore. Every voice component runs on SLNG's India gateway, and the hosted conversational agent is declared as an **Unmute** package.
@@ -60,6 +62,8 @@ node scripts/push-agent.mjs   # PATCH the body onto the agent in SLNG_AGENT_ID
 `unmute deploy` needs the `voiceai` CLI (Homebrew); `scripts/push-agent.mjs` does the same PATCH directly so it also works on Linux. The compiled body is committed in `unmute/janvaani/build/slng/agent.json` for review.
 
 ## Run it locally
+
+The [live demo](https://quick-marble-9ye8oc5.vercel.app/) is already deployed if you want to try it before installing.
 
 ```sh
 npm install
